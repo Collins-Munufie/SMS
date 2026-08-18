@@ -40,6 +40,7 @@ model User {
   guardianProfile Guardian?
   staffStreams   Stream[]               @relation("FormTeacherStreams")
   subjectTeachings ClassSubjectTeacher[]
+  timetableSlots TimetableSlot[]
   markedAttendance Attendance[]         @relation("AttendanceMarker")
   paymentsReceived Payment[]            @relation("PaymentReceiver")
   announcements  Announcement[]
@@ -95,6 +96,7 @@ model Stream {
   formTeacher   User?    @relation("FormTeacherStreams", fields: [formTeacherId], references: [id])
 
   subjectTeachers ClassSubjectTeacher[]
+  timetableSlots  TimetableSlot[]
   enrollments     Enrollment[]
   attendances     Attendance[]
   grades          Grade[]
@@ -108,8 +110,9 @@ model Subject {
   category    String   @default("CORE") // CORE or ELECTIVE
   description String?
 
-  teachers    ClassSubjectTeacher[]
-  grades      Grade[]
+  teachers       ClassSubjectTeacher[]
+  timetableSlots TimetableSlot[]
+  grades         Grade[]
 }
 
 model ClassSubjectTeacher {
@@ -122,6 +125,23 @@ model ClassSubjectTeacher {
   teacher   User    @relation(fields: [teacherId], references: [id], onDelete: Cascade)
 
   @@unique([streamId, subjectId])
+}
+
+model TimetableSlot {
+  id        String   @id @default(uuid())
+  streamId  String
+  stream    Stream   @relation(fields: [streamId], references: [id], onDelete: Cascade)
+  subjectId String
+  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  teacherId String
+  teacher   User     @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  dayOfWeek String   // MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY
+  period    Int      // 1 to 8
+  startTime String   // e.g. "08:00"
+  endTime   String   // e.g. "08:45"
+  room      String?  // e.g. "Room 4B", "Science Lab 1"
+
+  @@unique([streamId, dayOfWeek, period])
 }
 
 model Student {

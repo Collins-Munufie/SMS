@@ -12,6 +12,7 @@ import {
   BookOpen,
   Briefcase,
   HeartHandshake,
+  CalendarDays,
   ChevronRight,
 } from 'lucide-react';
 
@@ -29,6 +30,7 @@ const navItems: NavItem[] = [
   { label: 'Staff Management', path: '/staff', icon: Briefcase, roles: ['SUPER_ADMIN', 'ADMIN'] },
   { label: 'Guardians Directory', path: '/guardians', icon: HeartHandshake, roles: ['SUPER_ADMIN', 'ADMIN', 'TEACHER', 'FORM_TEACHER'] },
   { label: 'Class Attendance', path: '/attendance', icon: UserCheck, roles: ['SUPER_ADMIN', 'ADMIN', 'TEACHER', 'FORM_TEACHER', 'PARENT', 'STUDENT'] },
+  { label: 'Class Timetable', path: '/timetable', icon: CalendarDays },
   { label: 'Grades & Report Cards', path: '/grades', icon: GraduationCap },
   { label: 'Fees & Payments (GHS)', path: '/fees', icon: CreditCard, roles: ['SUPER_ADMIN', 'ADMIN', 'BURSAR', 'PARENT', 'STUDENT'] },
   { label: 'Announcements', path: '/announcements', icon: Bell },

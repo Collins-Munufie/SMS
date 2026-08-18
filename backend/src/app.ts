@@ -10,6 +10,7 @@ import attendanceRoutes from './routes/attendance.routes';
 import gradeRoutes from './routes/grade.routes';
 import feeRoutes from './routes/fee.routes';
 import announcementRoutes from './routes/announcement.routes';
+import timetableRoutes from './routes/timetable.routes';
 
 const app = express();
 
@@ -31,6 +32,7 @@ app.use('/api/attendance', attendanceRoutes);
 app.use('/api/grades', gradeRoutes);
 app.use('/api/fees', feeRoutes);
 app.use('/api/announcements', announcementRoutes);
+app.use('/api/timetable', timetableRoutes);
 
 // Global Error Handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
