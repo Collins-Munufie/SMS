@@ -6,6 +6,8 @@ import { AppLayout } from './components/layout/AppLayout';
 import { DashboardPage } from './pages/DashboardPage';
 import { AcademicPage } from './pages/AcademicPage';
 import { StudentsPage } from './pages/StudentsPage';
+import { StaffPage } from './pages/StaffPage';
+import { GuardiansPage } from './pages/GuardiansPage';
 import { AttendancePage } from './pages/AttendancePage';
 import { GradesPage } from './pages/GradesPage';
 import { FeesPage } from './pages/FeesPage';
@@ -31,6 +33,8 @@ export const App: React.FC = () => {
               <Route index element={<DashboardPage />} />
               <Route path="academic" element={<AcademicPage />} />
               <Route path="students" element={<StudentsPage />} />
+              <Route path="staff" element={<StaffPage />} />
+              <Route path="guardians" element={<GuardiansPage />} />
               <Route path="attendance" element={<AttendancePage />} />
               <Route path="grades" element={<GradesPage />} />
               <Route path="fees" element={<FeesPage />} />

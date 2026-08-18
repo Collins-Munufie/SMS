@@ -4,6 +4,8 @@ import { config } from './config';
 import authRoutes from './routes/auth.routes';
 import academicRoutes from './routes/academic.routes';
 import studentRoutes from './routes/student.routes';
+import staffRoutes from './routes/staff.routes';
+import guardianRoutes from './routes/guardian.routes';
 import attendanceRoutes from './routes/attendance.routes';
 import gradeRoutes from './routes/grade.routes';
 import feeRoutes from './routes/fee.routes';
@@ -23,6 +25,8 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/academic', academicRoutes);
 app.use('/api/students', studentRoutes);
+app.use('/api/staff', staffRoutes);
+app.use('/api/guardians', guardianRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/grades', gradeRoutes);
 app.use('/api/fees', feeRoutes);

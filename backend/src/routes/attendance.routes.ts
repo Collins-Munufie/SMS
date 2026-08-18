@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../utils/prisma';
 import { authenticateToken, AuthRequest, authorizeRoles } from '../middleware/auth';
-import { Role, AttendanceStatus } from '@prisma/client';
+import { Role, AttendanceStatus } from '../types';
 
 const router = Router();
 

@@ -2,7 +2,6 @@ import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../utils/prisma';
 import { authenticateToken, authorizeRoles } from '../middleware/auth';
-import { Role, Gender, StudentStatus } from '@prisma/client';
 
 const router = Router();
 
@@ -12,7 +11,7 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
     const { streamId, status, search } = req.query;
 
     const where: any = {};
-    if (status) where.status = status as StudentStatus;
+    if (status) where.status = String(status);
     if (search) {
       where.OR = [
         { studentId: { contains: String(search) } },
@@ -93,7 +92,7 @@ router.get('/:id', authenticateToken, async (req: Request, res: Response) => {
 });
 
 // POST /api/students (Admissions)
-router.post('/', authenticateToken, authorizeRoles(Role.SUPER_ADMIN, Role.ADMIN), async (req: Request, res: Response) => {
+router.post('/', authenticateToken, authorizeRoles('SUPER_ADMIN', 'ADMIN'), async (req: Request, res: Response) => {
   try {
     const { fullName, email, password, dob, gender, address, streamId, termId } = req.body;
 
@@ -108,7 +107,7 @@ router.post('/', authenticateToken, authorizeRoles(Role.SUPER_ADMIN, Role.ADMIN)
         fullName,
         email: email || `${generatedStudentId.toLowerCase()}@student.achimota.edu.gh`,
         passwordHash,
-        role: Role.STUDENT,
+        role: 'STUDENT',
         phone: req.body.phone || null,
       },
     });
@@ -118,9 +117,9 @@ router.post('/', authenticateToken, authorizeRoles(Role.SUPER_ADMIN, Role.ADMIN)
         studentId: generatedStudentId,
         userId: user.id,
         dob: new Date(dob),
-        gender: gender as Gender,
+        gender: gender || 'MALE',
         address: address || 'Accra, Ghana',
-        status: StudentStatus.ACTIVE,
+        status: 'ACTIVE',
       },
     });
 
@@ -135,6 +134,68 @@ router.post('/', authenticateToken, authorizeRoles(Role.SUPER_ADMIN, Role.ADMIN)
     }
 
     res.status(201).json({ message: 'Student registered successfully', student });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/students/bulk-import (Bulk Student CSV Admission)
+router.post('/bulk-import', authenticateToken, authorizeRoles('SUPER_ADMIN', 'ADMIN'), async (req: Request, res: Response) => {
+  try {
+    const { studentsList, streamId, termId } = req.body;
+    // studentsList: [{ fullName, email, dob, gender, address }]
+
+    if (!Array.isArray(studentsList) || studentsList.length === 0) {
+      return res.status(400).json({ error: 'studentsList must be a non-empty array' });
+    }
+
+    const defaultPasswordHash = await bcrypt.hash('Password123!', 10);
+    const initialCount = await prisma.student.count();
+    const currentYear = new Date().getFullYear();
+
+    const createdStudents = [];
+
+    for (let i = 0; i < studentsList.length; i++) {
+      const item = studentsList[i];
+      const generatedStudentId = `SMS-${currentYear}-${String(initialCount + i + 1).padStart(3, '0')}`;
+
+      const user = await prisma.user.create({
+        data: {
+          fullName: item.fullName,
+          email: item.email || `${generatedStudentId.toLowerCase()}@student.achimota.edu.gh`,
+          passwordHash: defaultPasswordHash,
+          role: 'STUDENT',
+        },
+      });
+
+      const student = await prisma.student.create({
+        data: {
+          studentId: generatedStudentId,
+          userId: user.id,
+          dob: item.dob ? new Date(item.dob) : new Date('2011-01-01'),
+          gender: item.gender || 'MALE',
+          address: item.address || 'Accra, Ghana',
+          status: 'ACTIVE',
+        },
+      });
+
+      if (streamId && termId) {
+        await prisma.enrollment.create({
+          data: {
+            studentId: student.id,
+            streamId,
+            termId,
+          },
+        });
+      }
+
+      createdStudents.push(student);
+    }
+
+    res.status(201).json({
+      message: `Successfully imported ${createdStudents.length} students via bulk admission`,
+      count: createdStudents.length,
+    });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

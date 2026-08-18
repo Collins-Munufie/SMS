@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { prisma } from '../utils/prisma';
 import { config } from '../config';
 import { authenticateToken, AuthRequest, authorizeRoles } from '../middleware/auth';
-import { Role } from '@prisma/client';
+import { Role } from '../types';
 
 const router = Router();
 

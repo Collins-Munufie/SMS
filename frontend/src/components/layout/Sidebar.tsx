@@ -8,10 +8,10 @@ import {
   UserCheck,
   GraduationCap,
   CreditCard,
-  CalendarDays,
   Bell,
   BookOpen,
-  Settings,
+  Briefcase,
+  HeartHandshake,
   ChevronRight,
 } from 'lucide-react';
 
@@ -26,6 +26,8 @@ const navItems: NavItem[] = [
   { label: 'Dashboard', path: '/', icon: LayoutDashboard },
   { label: 'Academic Setup', path: '/academic', icon: Building2, roles: ['SUPER_ADMIN', 'ADMIN'] },
   { label: 'Students Directory', path: '/students', icon: Users, roles: ['SUPER_ADMIN', 'ADMIN', 'TEACHER', 'FORM_TEACHER'] },
+  { label: 'Staff Management', path: '/staff', icon: Briefcase, roles: ['SUPER_ADMIN', 'ADMIN'] },
+  { label: 'Guardians Directory', path: '/guardians', icon: HeartHandshake, roles: ['SUPER_ADMIN', 'ADMIN', 'TEACHER', 'FORM_TEACHER'] },
   { label: 'Class Attendance', path: '/attendance', icon: UserCheck, roles: ['SUPER_ADMIN', 'ADMIN', 'TEACHER', 'FORM_TEACHER', 'PARENT', 'STUDENT'] },
   { label: 'Grades & Report Cards', path: '/grades', icon: GraduationCap },
   { label: 'Fees & Payments (GHS)', path: '/fees', icon: CreditCard, roles: ['SUPER_ADMIN', 'ADMIN', 'BURSAR', 'PARENT', 'STUDENT'] },

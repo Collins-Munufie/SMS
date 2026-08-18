@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
-import { Users, Search, UserPlus, FileText, Phone, Mail, MapPin, X, Check } from 'lucide-react';
+import { Users, Search, UserPlus, FileSpreadsheet, Phone, Mail, MapPin, X, Check, Upload } from 'lucide-react';
 
 export const StudentsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showBulkModal, setShowBulkModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
 
   // Add Student Form state
@@ -17,6 +18,12 @@ export const StudentsPage: React.FC = () => {
     address: 'Mile 7, Achimota, Accra',
     phone: '+233 24 000 1122',
   });
+
+  // Sample CSV Bulk Import data simulator
+  const [bulkCsvText, setBulkCsvText] = useState(`fullName,email,dob,gender,address
+Kofi Mensah,kofi.mensah@student.achimota.edu.gh,2011-03-15,MALE,Achimota Accra
+Abena Osei,abena.osei@student.achimota.edu.gh,2011-07-20,FEMALE,Dome Pillar 2 Accra
+Yaw Appiah,yaw.appiah@student.achimota.edu.gh,2011-11-02,MALE,Legon Accra`);
 
   const { data: studentsData, refetch } = useQuery({
     queryKey: ['students', searchTerm],
@@ -34,6 +41,36 @@ export const StudentsPage: React.FC = () => {
     }
   };
 
+  const handleBulkImport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      // Parse CSV text into array of student objects
+      const lines = bulkCsvText.trim().split('\n');
+      const headers = lines[0].split(',');
+      const studentsList = [];
+
+      for (let i = 1; i < lines.length; i++) {
+        const parts = lines[i].split(',');
+        if (parts.length >= 4) {
+          studentsList.push({
+            fullName: parts[0]?.trim(),
+            email: parts[1]?.trim(),
+            dob: parts[2]?.trim(),
+            gender: parts[3]?.trim(),
+            address: parts[4]?.trim() || 'Accra, Ghana',
+          });
+        }
+      }
+
+      const res = await api.post('/students/bulk-import', { studentsList });
+      alert(res.data.message);
+      setShowBulkModal(false);
+      refetch();
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed bulk import');
+    }
+  };
+
   const students = studentsData?.students || [];
 
   return (
@@ -41,15 +78,23 @@ export const StudentsPage: React.FC = () => {
       
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-900">Student Admissions & Directory</h2>
+          <h2 className="text-xl font-bold text-slate-900">Student Admissions & Bio-Data Directory</h2>
           <p className="text-xs text-slate-500">Manage student bio-data, auto-generated Index IDs, class enrollments and guardian contacts</p>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-semibold text-xs flex items-center gap-1.5 shadow-xs transition"
-        >
-          <UserPlus className="w-4 h-4" /> New Student Admission
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowBulkModal(true)}
+            className="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-semibold text-xs flex items-center gap-1.5 shadow-xs transition"
+          >
+            <FileSpreadsheet className="w-4 h-4 text-emerald-400" /> Bulk CSV Import
+          </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-semibold text-xs flex items-center gap-1.5 shadow-xs transition"
+          >
+            <UserPlus className="w-4 h-4" /> New Student Admission
+          </button>
+        </div>
       </div>
 
       {/* Filter & Search Bar */}
@@ -196,6 +241,50 @@ export const StudentsPage: React.FC = () => {
                   className="px-4 py-1.5 bg-emerald-700 text-white rounded-lg text-xs font-bold hover:bg-emerald-800"
                 >
                   Submit Admission
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk CSV Import Modal */}
+      {showBulkModal && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl p-6 max-w-lg w-full space-y-4 shadow-xl border border-slate-200">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                <FileSpreadsheet className="w-5 h-5 text-emerald-600" /> Bulk Student CSV Import
+              </h3>
+              <button onClick={() => setShowBulkModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleBulkImport} className="space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-slate-700">CSV Input Data (fullName, email, dob, gender, address)</label>
+                <textarea
+                  rows={6}
+                  value={bulkCsvText}
+                  onChange={(e) => setBulkCsvText(e.target.value)}
+                  className="w-full p-2.5 text-xs font-mono border border-slate-200 rounded-xl mt-1 focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowBulkModal(false)}
+                  className="px-3 py-1.5 border border-slate-200 text-slate-600 rounded-lg text-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-1.5 bg-emerald-700 text-white rounded-lg text-xs font-bold hover:bg-emerald-800 flex items-center gap-1"
+                >
+                  <Upload className="w-3.5 h-3.5" /> Execute Bulk Admission
                 </button>
               </div>
             </form>
