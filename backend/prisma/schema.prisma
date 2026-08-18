@@ -1,0 +1,335 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model SchoolProfile {
+  id          String   @id @default(uuid())
+  name        String
+  motto       String?
+  logoUrl     String?
+  address     String
+  phone       String
+  email       String
+  website     String?
+  region      String   @default("Greater Accra")
+  city        String   @default("Accra")
+  country     String   @default("Ghana")
+  currency    String   @default("GHS")
+  updatedAt   DateTime @updatedAt
+}
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  passwordHash  String
+  fullName      String
+  role          String   @default("STUDENT") // SUPER_ADMIN, ADMIN, TEACHER, FORM_TEACHER, BURSAR, STUDENT, PARENT, LIBRARIAN
+  phone         String?
+  avatarUrl     String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Role Specific Relations
+  studentProfile Student?
+  guardianProfile Guardian?
+  staffStreams   Stream[]               @relation("FormTeacherStreams")
+  subjectTeachings ClassSubjectTeacher[]
+  markedAttendance Attendance[]         @relation("AttendanceMarker")
+  paymentsReceived Payment[]            @relation("PaymentReceiver")
+  announcements  Announcement[]
+  sentMessages   Message[]              @relation("SentMessages")
+  receivedMessages Message[]            @relation("ReceivedMessages")
+}
+
+model AcademicYear {
+  id        String   @id @default(uuid())
+  yearLabel String   @unique // e.g. "2025/2026"
+  startDate DateTime
+  endDate   DateTime
+  isCurrent Boolean  @default(false)
+  terms     Term[]
+  createdAt DateTime @default(now())
+}
+
+model Term {
+  id             String       @id @default(uuid())
+  academicYearId String
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  termNumber     Int          // 1, 2, or 3
+  termLabel      String       // e.g. "Term 1"
+  startDate      DateTime
+  endDate        DateTime
+  isCurrent      Boolean      @default(false)
+
+  enrollments    Enrollment[]
+  termResults    TermResult[]
+  feeStructures  FeeStructure[]
+  invoices       Invoice[]
+  grades         Grade[]
+
+  createdAt      DateTime     @default(now())
+}
+
+model Class {
+  id             String                 @id @default(uuid())
+  name           String                 // e.g., "JHS 1", "SHS 2"
+  code           String                 @unique // e.g., "JHS1", "SHS2-SCI"
+  level          String                 // e.g., "JHS", "SHS"
+  streams        Stream[]
+  feeStructures  FeeStructure[]
+  assessmentComponents AssessmentComponent[]
+}
+
+model Stream {
+  id            String   @id @default(uuid())
+  classId       String
+  class         Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  name          String   // e.g., "Gold", "Green", "A", "B"
+  formTeacherId String?
+  formTeacher   User?    @relation("FormTeacherStreams", fields: [formTeacherId], references: [id])
+
+  subjectTeachers ClassSubjectTeacher[]
+  enrollments     Enrollment[]
+  attendances     Attendance[]
+  grades          Grade[]
+  termResults     TermResult[]
+}
+
+model Subject {
+  id          String   @id @default(uuid())
+  name        String   // e.g. "Core Mathematics", "English Language"
+  code        String   @unique // e.g. "MATH101", "ENG101"
+  category    String   @default("CORE") // CORE or ELECTIVE
+  description String?
+
+  teachers    ClassSubjectTeacher[]
+  grades      Grade[]
+}
+
+model ClassSubjectTeacher {
+  id        String  @id @default(uuid())
+  streamId  String
+  stream    Stream  @relation(fields: [streamId], references: [id], onDelete: Cascade)
+  subjectId String
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  teacherId String
+  teacher   User    @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@unique([streamId, subjectId])
+}
+
+model Student {
+  id            String        @id @default(uuid())
+  studentId     String        @unique // e.g. "SMS-2025-001"
+  userId        String        @unique
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dob           DateTime
+  gender        String        // MALE, FEMALE
+  address       String
+  photoUrl      String?
+  admissionDate DateTime      @default(now())
+  status        String        @default("ACTIVE") // ACTIVE, SUSPENDED, GRADUATED, TRANSFERRED
+
+  guardians     StudentGuardian[]
+  enrollments   Enrollment[]
+  attendances   Attendance[]
+  grades        Grade[]
+  termResults   TermResult[]
+  invoices      Invoice[]
+  borrowRecords BorrowRecord[]
+}
+
+model Guardian {
+  id               String            @id @default(uuid())
+  userId           String            @unique
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  occupation       String?
+  relationship     String            // Parent, Father, Mother, Sponsor, Guardian
+  address          String
+  emergencyContact String
+
+  wards            StudentGuardian[]
+}
+
+model StudentGuardian {
+  studentId  String
+  student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  guardianId String
+  guardian   Guardian @relation(fields: [guardianId], references: [id], onDelete: Cascade)
+  isPrimary  Boolean  @default(true)
+
+  @@id([studentId, guardianId])
+}
+
+model Enrollment {
+  id         String   @id @default(uuid())
+  studentId  String
+  student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  streamId   String
+  stream     Stream   @relation(fields: [streamId], references: [id], onDelete: Cascade)
+  termId     String
+  term       Term     @relation(fields: [termId], references: [id], onDelete: Cascade)
+  rollNumber Int?
+  createdAt  DateTime @default(now())
+
+  @@unique([studentId, termId])
+}
+
+model Attendance {
+  id         String   @id @default(uuid())
+  studentId  String
+  student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  streamId   String
+  stream     Stream   @relation(fields: [streamId], references: [id], onDelete: Cascade)
+  date       DateTime
+  status     String   // PRESENT, ABSENT, LATE, EXCUSED
+  markedById String
+  markedBy   User     @relation("AttendanceMarker", fields: [markedById], references: [id])
+  remark     String?
+
+  @@unique([studentId, date])
+}
+
+model AssessmentComponent {
+  id               String   @id @default(uuid())
+  classId          String
+  class            Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  name             String   // e.g. "Class Score", "Terminal Exam"
+  weightPercentage Float    // e.g. 30.0 for Class score, 70.0 for Exam
+  grades           Grade[]
+}
+
+model Grade {
+  id          String              @id @default(uuid())
+  studentId   String
+  student     Student             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  streamId    String
+  stream      Stream              @relation(fields: [streamId], references: [id], onDelete: Cascade)
+  subjectId   String
+  subject     Subject             @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  termId      String
+  term        Term                @relation(fields: [termId], references: [id], onDelete: Cascade)
+  componentId String
+  component   AssessmentComponent @relation(fields: [componentId], references: [id], onDelete: Cascade)
+  score       Float
+  maxScore    Float               @default(100)
+  createdAt   DateTime            @default(now())
+
+  @@unique([studentId, termId, subjectId, componentId])
+}
+
+model TermResult {
+  id                 String   @id @default(uuid())
+  studentId          String
+  student            Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  streamId           String
+  stream             Stream   @relation(fields: [streamId], references: [id], onDelete: Cascade)
+  termId             String
+  term               Term     @relation(fields: [termId], references: [id], onDelete: Cascade)
+  totalScore         Float
+  averageScore       Float
+  waecGrade          String   // e.g. A1, B2, B3, C4, C5, C6, D7, E8, F9
+  positionInClass    Int?
+  formTeacherRemarks String?
+  headteacherRemarks String?
+  createdAt          DateTime @default(now())
+
+  @@unique([studentId, termId])
+}
+
+model FeeStructure {
+  id          String   @id @default(uuid())
+  classId     String
+  class       Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  termId      String
+  term        Term     @relation(fields: [termId], references: [id], onDelete: Cascade)
+  name        String   // e.g. "Tuition Fee", "Feeding", "PTA Dues", "Exam Fee"
+  amount      Float    // Amount in GHS
+  description String?
+}
+
+model Invoice {
+  id            String    @id @default(uuid())
+  invoiceNumber String    @unique // e.g. "INV-2025-001"
+  studentId     String
+  student       Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  termId        String
+  term          Term      @relation(fields: [termId], references: [id], onDelete: Cascade)
+  totalAmount   Float
+  amountPaid    Float     @default(0)
+  balance       Float
+  status        String    @default("UNPAID") // UNPAID, PARTIAL, PAID
+  dueDate       DateTime
+  payments      Payment[]
+  createdAt     DateTime  @default(now())
+
+  @@unique([studentId, termId])
+}
+
+model Payment {
+  id              String   @id @default(uuid())
+  receiptNumber   String   @unique // e.g. "REC-2025-001"
+  invoiceId       String
+  invoice         Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  amountPaid      Float
+  paymentDate     DateTime @default(now())
+  paymentMethod   String   @default("MOMO_MTN") // CASH, MOMO_MTN, MOMO_TELECEL, MOMO_AT, BANK_TRANSFER
+  referenceNumber String?  // e.g. MoMo Transaction ID
+  receivedById    String
+  receivedBy      User     @relation("PaymentReceiver", fields: [receivedById], references: [id])
+  notes           String?
+}
+
+model Announcement {
+  id             String   @id @default(uuid())
+  title          String
+  content        String
+  targetRole     String?
+  targetStreamId String?
+  authorId       String
+  author         User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  priority       String   @default("NORMAL") // NORMAL, HIGH, URGENT
+  createdAt      DateTime @default(now())
+}
+
+model Message {
+  id         String   @id @default(uuid())
+  senderId   String
+  sender     User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId String
+  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  subject    String
+  body       String
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
+
+model Book {
+  id              String         @id @default(uuid())
+  title           String
+  author          String
+  isbn            String         @unique
+  category        String         // e.g. Textbooks, Literature, Reference
+  totalCopies     Int            @default(1)
+  availableCopies Int            @default(1)
+  borrowRecords   BorrowRecord[]
+}
+
+model BorrowRecord {
+  id         String    @id @default(uuid())
+  bookId     String
+  book       Book      @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  studentId  String
+  student    Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  borrowDate DateTime  @default(now())
+  dueDate    DateTime
+  returnDate DateTime?
+  status     String    @default("BORROWED") // BORROWED, RETURNED, OVERDUE
+  fineAmount Float     @default(0)
+}

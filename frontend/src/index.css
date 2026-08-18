@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.ghana-gradient {
+  background: linear-gradient(135deg, #006b3f 0%, #0f172a 100%);
+}
+
+.ghana-accent-bar {
+  background: linear-gradient(90deg, #ce1126 0%, #fcd116 50%, #006b3f 100%);
+}

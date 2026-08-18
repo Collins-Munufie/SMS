@@ -1,0 +1,50 @@
+# Node.js dependencies
+**/node_modules/
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Environment variables & Secrets
+**/.env
+**/.env.*
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Databases & SQLite local files
+**/*.db
+**/*.db-journal
+**/*.sqlite
+**/*.sqlite-journal
+backend/prisma/dev.db
+backend/prisma/dev.db-journal
+
+# Build outputs
+**/dist/
+**/build/
+**/.output/
+**/.vite/
+dist/
+build/
+
+# Logs & Temporary files
+**/*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# IDE & OS Junk
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+Thumbs.db
