@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { config } from '../config';
+import { prisma } from '../utils/prisma';
 import { Role } from '../types';
 
 export interface AuthUser {
@@ -22,11 +23,28 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
     return res.status(401).json({ error: 'Access token required' });
   }
 
-  jwt.verify(token, config.jwtSecret, (err, decoded) => {
+  jwt.verify(token, config.jwtSecret, async (err, decoded) => {
     if (err) {
       return res.status(403).json({ error: 'Invalid or expired token' });
     }
-    req.user = decoded as AuthUser;
+    
+    const userPayload = decoded as AuthUser;
+    
+    // Check if account is active (not revoked)
+    try {
+      const dbUser = await prisma.user.findUnique({
+        where: { id: userPayload.id },
+        select: { isActive: true },
+      });
+
+      if (!dbUser || !dbUser.isActive) {
+        return res.status(403).json({ error: 'Account access has been revoked by Admin.' });
+      }
+    } catch {
+      // Fallback
+    }
+
+    req.user = userPayload;
     next();
   });
 };
