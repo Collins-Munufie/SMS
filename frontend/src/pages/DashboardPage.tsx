@@ -12,6 +12,9 @@ import {
   Sparkles,
   CheckCircle2,
   Crown,
+  FileSpreadsheet,
+  Clock,
+  AlertCircle,
 } from 'lucide-react';
 import {
   BarChart,
@@ -42,7 +45,31 @@ export const DashboardPage: React.FC = () => {
     queryFn: async () => (await api.get('/students')).data,
   });
 
+  // Pending Assessment Entries Widget Query for Teachers
+  const { data: pendingData } = useQuery({
+    queryKey: ['pendingAssessmentSummary', user?.id],
+    queryFn: async () => (await api.get('/grades/pending-summary')).data,
+  });
+
   const totalStudents = studentsData?.students?.length || 5;
+  const pendingList = pendingData?.pendingList || [
+    {
+      allocationId: 'alloc-1',
+      className: 'Basic 7',
+      streamName: 'A',
+      subjectName: 'Mathematics',
+      completionPercentage: 80,
+      isComplete: false,
+    },
+    {
+      allocationId: 'alloc-2',
+      className: 'Basic 7',
+      streamName: 'B',
+      subjectName: 'Mathematics',
+      completionPercentage: 60,
+      isComplete: false,
+    },
+  ];
 
   const chartFeeData = [
     { name: 'Collected', amount: feeSummary?.totalCollected || 800 },
@@ -79,26 +106,88 @@ export const DashboardPage: React.FC = () => {
 
           <div className="flex flex-wrap gap-2">
             <Link
+              to="/grades"
+              className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition flex items-center gap-1.5"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-amber-300" />
+              Continuous Assessment Entry
+            </Link>
+            <Link
               to="/attendance"
               className="px-3.5 py-2 rounded-xl bg-white text-slate-900 hover:bg-slate-100 font-bold text-xs shadow-md transition flex items-center gap-1.5"
             >
               <UserCheck className="w-4 h-4 text-emerald-700" />
               Mark Register
             </Link>
-            <Link
-              to="/fees"
-              className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs shadow-md transition flex items-center gap-1.5"
-            >
-              <CreditCard className="w-4 h-4 text-slate-950" />
-              Record MoMo Fee
-            </Link>
           </div>
         </div>
       </div>
 
+      {/* Teacher Widget: Pending CA Entries Card */}
+      {(user?.role === 'TEACHER' || user?.role === 'FORM_TEACHER' || user?.role === 'SUPER_ADMIN') && (
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-xl bg-amber-100 text-amber-900">
+                <Clock className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm">Pending Continuous Assessment Entries</h3>
+                <p className="text-xs text-slate-500">Subject classes requiring term score entry & collation</p>
+              </div>
+            </div>
+            <Link
+              to="/grades"
+              className="px-3 py-1.5 bg-slate-900 text-white font-bold text-xs rounded-xl hover:bg-slate-800 transition"
+            >
+              Open Score Grid
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {pendingList.map((item: any) => (
+              <div
+                key={item.allocationId}
+                className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2 hover:border-slate-300 transition"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="font-bold text-slate-900 text-xs">
+                    {item.className} ({item.streamName}) — {item.subjectName}
+                  </div>
+                  {item.isComplete ? (
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> Complete
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[10px] font-bold">
+                      {item.completionPercentage}% Done
+                    </span>
+                  )}
+                </div>
+
+                <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-300 ${
+                      item.isComplete ? 'bg-emerald-600' : 'bg-amber-500'
+                    }`}
+                    style={{ width: `${item.completionPercentage}%` }}
+                  />
+                </div>
+
+                <div className="pt-1 flex items-center justify-between text-[11px] text-slate-500">
+                  <span>Term 1 Assessment</span>
+                  <Link to="/grades" className="text-emerald-700 font-bold hover:underline">
+                    Enter Scores &rarr;
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* 4 Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        
         <div className="glass-card p-4 rounded-2xl shadow-xs space-y-2 border border-slate-200">
           <div className="flex items-center justify-between text-slate-500">
             <span className="text-xs font-semibold">Total Basic Pupils</span>
@@ -154,13 +243,10 @@ export const DashboardPage: React.FC = () => {
             KG 1–2, Basic 1–6 & Basic 7–9
           </div>
         </div>
-
       </div>
 
       {/* Analytics Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
-        {/* Fee Collection Chart */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -184,7 +270,6 @@ export const DashboardPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Grade Distribution Chart */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -207,7 +292,6 @@ export const DashboardPage: React.FC = () => {
             </ResponsiveContainer>
           </div>
         </div>
-
       </div>
 
     </div>

@@ -1,44 +1,56 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
-import { GraduationCap, Printer, Award, CheckCircle2, FileText, X, Settings, RefreshCw, MessageSquare, Save } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import {
+  GraduationCap,
+  Printer,
+  Award,
+  AlertTriangle,
+  FileText,
+  X,
+  Settings,
+  RefreshCw,
+  Save,
+  Lock,
+  Unlock,
+  CheckCircle2,
+  FileSpreadsheet,
+  Layers,
+  Search,
+  Check,
+} from 'lucide-react';
 
 export const GradesPage: React.FC = () => {
-  const [selectedStreamId, setSelectedStreamId] = useState<string>('');
-  const [selectedSubjectId, setSelectedSubjectId] = useState<string>('');
+  const { user } = useAuth();
+  const [selectedAllocId, setSelectedAllocId] = useState<string>('');
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [showRemarksModal, setShowRemarksModal] = useState<any>(null);
+  const [showPasteModal, setShowPasteModal] = useState(false);
+  const [pasteText, setPasteText] = useState('');
 
   // Remarks state
   const [formTeacherRemarks, setFormTeacherRemarks] = useState('An outstanding academic performance. Recommended for promotion.');
   const [headteacherRemarks, setHeadteacherRemarks] = useState('Promoted to next class level.');
 
-  // Assessment Component Form state
-  const [showComponentModal, setShowComponentModal] = useState(false);
-  const [compName, setCompName] = useState('Mid-Term Test');
-  const [compWeight, setCompWeight] = useState('10');
+  // Live Score Grid Inputs Matrix state: { `${studentId}_${componentId}`: rawScore }
+  const [scoreMatrix, setScoreMatrix] = useState<Record<string, number>>({});
+  const [isSaving, setIsSaving] = useState(false);
 
-  const { data: streamsData } = useQuery({
-    queryKey: ['gradesStreams'],
+  // Fetch Teacher Allocations (Scope teacher's assigned subjects & classes)
+  const { data: allocData } = useQuery({
+    queryKey: ['teacherAllocations', user?.id, user?.role],
     queryFn: async () => {
-      const res = (await api.get('/academic/streams')).data;
-      if (res.streams?.[0] && !selectedStreamId) {
-        setSelectedStreamId(res.streams[0].id);
+      const res = (await api.get('/grades/teacher/allocations')).data;
+      if (res.allocations?.[0] && !selectedAllocId) {
+        setSelectedAllocId(res.allocations[0].id);
       }
       return res;
     },
   });
 
-  const { data: subjectsData } = useQuery({
-    queryKey: ['gradesSubjects'],
-    queryFn: async () => {
-      const res = (await api.get('/academic/subjects')).data;
-      if (res.subjects?.[0] && !selectedSubjectId) {
-        setSelectedSubjectId(res.subjects[0].id);
-      }
-      return res;
-    },
-  });
+  const allocations = allocData?.allocations || [];
+  const currentAlloc = allocations.find((a: any) => a.id === selectedAllocId) || allocations[0];
 
   const { data: termsData } = useQuery({
     queryKey: ['gradesTerms'],
@@ -47,15 +59,22 @@ export const GradesPage: React.FC = () => {
 
   const activeTermId = termsData?.terms?.find((t: any) => t.isCurrent)?.id || termsData?.terms?.[0]?.id;
 
-  const { data: matrixData, refetch: refetchMatrix } = useQuery({
-    queryKey: ['gradesMatrix', selectedStreamId, activeTermId, selectedSubjectId],
+  // Fetch CA Grid Payload for selected Allocation & Term
+  const { data: gridData, refetch: refetchGrid } = useQuery({
+    queryKey: ['caGrid', currentAlloc?.streamId, currentAlloc?.subjectId, activeTermId],
     queryFn: async () => {
-      if (!selectedStreamId || !activeTermId || !selectedSubjectId) return null;
-      return (await api.get('/grades/matrix', {
-        params: { streamId: selectedStreamId, termId: activeTermId, subjectId: selectedSubjectId },
-      })).data;
+      if (!currentAlloc?.streamId || !currentAlloc?.subjectId || !activeTermId) return null;
+      return (
+        await api.get('/grades/ca-grid', {
+          params: {
+            streamId: currentAlloc.streamId,
+            subjectId: currentAlloc.subjectId,
+            termId: activeTermId,
+          },
+        })
+      ).data;
     },
-    enabled: !!selectedStreamId && !!activeTermId && !!selectedSubjectId,
+    enabled: !!currentAlloc?.streamId && !!currentAlloc?.subjectId && !!activeTermId,
   });
 
   const { data: reportCardData } = useQuery({
@@ -67,163 +86,335 @@ export const GradesPage: React.FC = () => {
     enabled: !!selectedStudentId,
   });
 
-  const streams = streamsData?.streams || [];
-  const subjects = subjectsData?.subjects || [];
-  const enrollments = matrixData?.enrollments || [];
+  // Populate initial scores from backend into live score matrix
+  useEffect(() => {
+    if (gridData?.grades) {
+      const initial: Record<string, number> = {};
+      gridData.grades.forEach((g: any) => {
+        initial[`${g.studentId}_${g.componentId}`] = g.score;
+      });
+      setScoreMatrix(initial);
+    }
+  }, [gridData]);
+
+  const components = gridData?.components || [];
+  const enrollments = gridData?.enrollments || [];
+  const summary = gridData?.summary;
+  const isExamWindowOpen = gridData?.term?.isExamWindowOpen ?? true;
+  const isTermLocked = gridData?.term?.isTermLocked ?? false;
+
+  // Handle live Score input change
+  const handleScoreChange = (studentId: string, componentId: string, val: string) => {
+    const numeric = parseFloat(val);
+    setScoreMatrix((prev) => ({
+      ...prev,
+      [`${studentId}_${componentId}`]: isNaN(numeric) ? 0 : numeric,
+    }));
+  };
+
+  // Helper: Compute weighted total for a student row
+  const computeRowTotal = (studentId: string) => {
+    let total = 0;
+    components.forEach((c: any) => {
+      const score = scoreMatrix[`${studentId}_${c.id}`] || 0;
+      const weight = c.weightPercentage || 10;
+      const max = c.maxScore || 100;
+      total += (score / max) * weight;
+    });
+    return Math.round(total * 10) / 10;
+  };
+
+  // Helper: Compute WAEC Grade for row
+  const getWaecGrade = (score: number) => {
+    if (score >= 80) return 'A1';
+    if (score >= 75) return 'B2';
+    if (score >= 70) return 'B3';
+    if (score >= 65) return 'C4';
+    if (score >= 60) return 'C5';
+    if (score >= 55) return 'C6';
+    if (score >= 50) return 'D7';
+    if (score >= 45) return 'E8';
+    return 'F9';
+  };
+
+  // Batch Save & Auto-Collate
+  const handleSaveAll = async () => {
+    if (!currentAlloc) return;
+    setIsSaving(true);
+    try {
+      const entries: any[] = [];
+      enrollments.forEach((en: any) => {
+        components.forEach((c: any) => {
+          const score = scoreMatrix[`${en.student.id}_${c.id}`];
+          if (score !== undefined) {
+            entries.push({
+              studentId: en.student.id,
+              componentId: c.id,
+              score,
+            });
+          }
+        });
+      });
+
+      const res = await api.post('/grades/ca-entry', {
+        streamId: currentAlloc.streamId,
+        subjectId: currentAlloc.subjectId,
+        termId: activeTermId,
+        entries,
+      });
+
+      alert(res.data.message || 'Scores saved and auto-collated successfully!');
+      refetchGrid();
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to save scores');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Handle Bulk Paste from CSV / Excel
+  const handleBulkPaste = () => {
+    if (!pasteText.trim()) return;
+    const lines = pasteText.trim().split('\n');
+    const newMatrix = { ...scoreMatrix };
+
+    lines.forEach((line, index) => {
+      if (enrollments[index]) {
+        const studentId = enrollments[index].student.id;
+        const values = line.split(/[\t,]/).map((v) => parseFloat(v.trim()));
+        components.forEach((comp: any, compIdx: number) => {
+          if (!isNaN(values[compIdx])) {
+            newMatrix[`${studentId}_${comp.id}`] = values[compIdx];
+          }
+        });
+      }
+    });
+
+    setScoreMatrix(newMatrix);
+    setShowPasteModal(false);
+    setPasteText('');
+    alert('Scores imported from clipboard successfully!');
+  };
 
   const handleComputeRanks = async () => {
+    if (!currentAlloc) return;
     try {
       const res = await api.post('/grades/compute-ranks', {
-        streamId: selectedStreamId,
+        streamId: currentAlloc.streamId,
         termId: activeTermId,
       });
       alert(res.data.message);
-      refetchMatrix();
+      refetchGrid();
     } catch (err: any) {
       alert(err.response?.data?.error || 'Failed to compute ranks');
-    }
-  };
-
-  const handleSaveRemarks = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!showRemarksModal) return;
-    try {
-      await api.post('/grades/remarks', {
-        studentId: showRemarksModal.student.id,
-        termId: activeTermId,
-        formTeacherRemarks,
-        headteacherRemarks,
-      });
-      setShowRemarksModal(null);
-      alert('Remarks updated successfully');
-    } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to save remarks');
-    }
-  };
-
-  const handleCreateComponent = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const classId = streams.find((s: any) => s.id === selectedStreamId)?.classId || 'class-1';
-      await api.post('/grades/components', {
-        classId,
-        name: compName,
-        weightPercentage: Number(compWeight),
-      });
-      setShowComponentModal(false);
-      alert('Assessment Component added');
-    } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to add component');
     }
   };
 
   return (
     <div className="space-y-6">
       
+      {/* Top Title & Header Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-900">Examinations, WAEC Grading & Report Cards</h2>
-          <p className="text-xs text-slate-500">Continuous Assessment (30%) + Terminal Exam (70%), Class Ranking (1st, 2nd) and Branded PDF Generation</p>
+          <h2 className="text-xl font-bold text-slate-900">Subject & Continuous Assessment (CA) Score Entry</h2>
+          <p className="text-xs text-slate-500">
+            Spreadsheet score entry grid, automatic weighted collation & instant report card update
+          </p>
         </div>
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setShowComponentModal(true)}
-            className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-semibold text-xs flex items-center gap-1"
+            onClick={() => setShowPasteModal(true)}
+            className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-semibold text-xs flex items-center gap-1.5"
           >
-            <Settings className="w-4 h-4 text-slate-600" /> Weightings
+            <FileSpreadsheet className="w-4 h-4 text-emerald-600" /> Paste from Excel
           </button>
           <button
             onClick={handleComputeRanks}
-            className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-semibold text-xs flex items-center gap-1.5 shadow-xs"
+            className="px-3 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-semibold text-xs flex items-center gap-1.5 shadow-xs"
           >
-            <RefreshCw className="w-4 h-4" /> Compute Class Ranks
+            <RefreshCw className="w-4 h-4 text-amber-400" /> Compute Class Ranks
+          </button>
+          <button
+            onClick={handleSaveAll}
+            disabled={isSaving || isTermLocked}
+            className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md"
+          >
+            <Save className="w-4 h-4" /> {isSaving ? 'Collating...' : 'Save & Collate Scores'}
           </button>
         </div>
       </div>
 
-      {/* Selectors Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row items-center gap-3">
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <label className="text-xs font-bold text-slate-600">Class Stream:</label>
-          <select
-            value={selectedStreamId}
-            onChange={(e) => setSelectedStreamId(e.target.value)}
-            className="p-2 text-xs border border-slate-200 rounded-xl bg-slate-50 font-bold text-slate-900 flex-1"
-          >
-            {streams.map((s: any) => (
-              <option key={s.id} value={s.id}>
-                {s.class?.name} ({s.name})
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <label className="text-xs font-bold text-slate-600">Subject:</label>
-          <select
-            value={selectedSubjectId}
-            onChange={(e) => setSelectedSubjectId(e.target.value)}
-            className="p-2 text-xs border border-slate-200 rounded-xl bg-slate-50 font-bold text-slate-900 flex-1"
-          >
-            {subjects.map((sub: any) => (
-              <option key={sub.id} value={sub.id}>
-                {sub.name} ({sub.code})
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Grade Entry Matrix Card */}
-      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-          <span className="font-bold text-slate-900 text-sm">Class Marks Entry & WAEC Assessment Matrix</span>
-          <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 text-xs font-bold">
-            Term 1 (2025/2026)
+      {/* Scope Safeguard Banner & Allocation Selector Tabs */}
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+            <Layers className="w-4 h-4 text-emerald-600" /> Your Assigned Class & Subject Allocations
+          </div>
+          <span className="text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-amber-100 text-amber-900 border border-amber-300">
+            Strict Teacher Scope Active
           </span>
         </div>
 
+        <div className="flex flex-wrap gap-2">
+          {allocations.map((alloc: any) => (
+            <button
+              key={alloc.id}
+              onClick={() => setSelectedAllocId(alloc.id)}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition flex items-center gap-2 ${
+                selectedAllocId === alloc.id
+                  ? 'bg-emerald-900 text-white border-emerald-900 shadow-sm'
+                  : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+              }`}
+            >
+              <span>
+                {alloc.stream?.class?.name} ({alloc.stream?.name}) — {alloc.subject?.name}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Admin Assessment Weightings & Lock Banner */}
+      <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-sm flex flex-col md:flex-row items-center justify-between gap-4 border border-slate-800">
+        <div className="space-y-1">
+          <div className="text-xs font-bold text-amber-300 flex items-center gap-2">
+            <span>Admin-Configured Assessment Component Weightings</span>
+            <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 font-mono">
+              Sum = 100%
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-3 text-xs text-slate-300">
+            {components.map((c: any) => (
+              <div key={c.id} className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                <span>{c.name}:</span>
+                <strong className="text-white font-mono">{c.weightPercentage}%</strong>
+                <span className="text-slate-400 text-[10px]">(Max: {c.maxScore})</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {isTermLocked ? (
+            <div className="px-3 py-1.5 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold flex items-center gap-1.5">
+              <Lock className="w-4 h-4 text-rose-400" /> Term Edit Window Locked
+            </div>
+          ) : (
+            <div className="px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-bold flex items-center gap-1.5">
+              <Unlock className="w-4 h-4 text-emerald-400" /> Assessment Window Open
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Missing Scores Warning Bar */}
+      {summary && !summary.isComplete && (
+        <div className="p-3 bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl text-xs font-bold flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>
+              Missing Score Warning: There are <strong>{summary.missingEntriesCount} missing component entries</strong> in this class sheet.
+            </span>
+          </div>
+          <span className="text-[11px] text-amber-700 underline font-semibold">Complete all cells before final collation</span>
+        </div>
+      )}
+
+      {/* Spreadsheet Score Entry Grid Table */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 uppercase">
-                <th className="p-3">Student Name</th>
-                <th className="p-3">Index ID</th>
-                <th className="p-3">Class Score (30%)</th>
-                <th className="p-3">Exam Score (70%)</th>
-                <th className="p-3">Total (100%)</th>
-                <th className="p-3">WAEC Grade</th>
-                <th className="p-3 text-right">Actions</th>
+              <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                <th className="p-3 border-r border-slate-200 w-12 text-center">#</th>
+                <th className="p-3 border-r border-slate-200 min-w-[180px]">Student Name</th>
+                <th className="p-3 border-r border-slate-200 min-w-[110px]">Index ID</th>
+                
+                {components.map((c: any) => (
+                  <th key={c.id} className="p-3 border-r border-slate-200 min-w-[130px] text-center">
+                    <div>{c.name}</div>
+                    <div className="text-[10px] text-slate-500 font-normal">
+                      Weight: {c.weightPercentage}% • Max: {c.maxScore}
+                    </div>
+                  </th>
+                ))}
+
+                <th className="p-3 border-r border-slate-200 text-center bg-emerald-50 text-emerald-950 font-extrabold min-w-[100px]">
+                  Total (100%)
+                </th>
+                <th className="p-3 border-r border-slate-200 text-center bg-emerald-50 text-emerald-950 font-extrabold min-w-[90px]">
+                  WAEC Grade
+                </th>
+                <th className="p-3 text-right min-w-[100px]">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {enrollments.map((en: any) => {
-                const total = 88.5;
+              {enrollments.map((en: any, idx: number) => {
+                const studentId = en.student.id;
+                const total = computeRowTotal(studentId);
+                const grade = getWaecGrade(total);
+
                 return (
-                  <tr key={en.id} className="hover:bg-slate-50 transition">
-                    <td className="p-3 font-semibold text-slate-900">{en.student?.user?.fullName}</td>
-                    <td className="p-3 font-mono font-bold text-emerald-800">{en.student?.studentId}</td>
-                    <td className="p-3 font-semibold text-slate-700">26.5 / 30</td>
-                    <td className="p-3 font-semibold text-slate-700">62.0 / 70</td>
-                    <td className="p-3 font-bold text-slate-900">{total}%</td>
-                    <td className="p-3">
-                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-600 text-white font-bold text-[11px]">
-                        A1 (Excellent)
+                  <tr key={en.id} className="hover:bg-slate-50/80 transition">
+                    <td className="p-3 text-center border-r border-slate-200 font-bold text-slate-400">
+                      {idx + 1}
+                    </td>
+                    <td className="p-3 border-r border-slate-200 font-bold text-slate-900">
+                      {en.student?.user?.fullName}
+                    </td>
+                    <td className="p-3 border-r border-slate-200 font-mono font-bold text-emerald-800">
+                      {en.student?.studentId}
+                    </td>
+
+                    {/* Cell Editors for Each Assessment Component */}
+                    {components.map((c: any) => {
+                      const scoreKey = `${studentId}_${c.id}`;
+                      const currentVal = scoreMatrix[scoreKey];
+                      const maxAllowed = c.maxScore || 100;
+                      const isExceeding = currentVal !== undefined && currentVal > maxAllowed;
+
+                      const isExam = c.name.toLowerCase().includes('exam');
+                      const isLockedCell = isExam && !isExamWindowOpen;
+
+                      return (
+                        <td key={c.id} className="p-2 border-r border-slate-200 text-center">
+                          <input
+                            type="number"
+                            step="0.5"
+                            disabled={isLockedCell || isTermLocked}
+                            placeholder="0"
+                            value={currentVal !== undefined ? currentVal : ''}
+                            onChange={(e) => handleScoreChange(studentId, c.id, e.target.value)}
+                            className={`w-full p-2 text-center text-xs font-bold rounded-lg border transition ${
+                              isExceeding
+                                ? 'border-rose-500 bg-rose-100 text-rose-900 focus:ring-2 focus:ring-rose-500'
+                                : currentVal !== undefined && currentVal > 0
+                                ? 'border-slate-300 bg-emerald-50/30 text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-500'
+                                : 'border-slate-200 bg-slate-50 text-slate-400 focus:bg-white focus:ring-2 focus:ring-emerald-500'
+                            } ${isLockedCell ? 'bg-slate-100 cursor-not-allowed text-slate-400' : ''}`}
+                          />
+                        </td>
+                      );
+                    })}
+
+                    {/* Auto-Collated Total & WAEC Grade */}
+                    <td className="p-3 border-r border-slate-200 text-center font-extrabold text-slate-900 bg-emerald-50/40 text-sm">
+                      {total}%
+                    </td>
+                    <td className="p-3 border-r border-slate-200 text-center bg-emerald-50/40">
+                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-700 text-white font-extrabold text-xs">
+                        {grade}
                       </span>
                     </td>
-                    <td className="p-3 text-right space-x-2">
+
+                    <td className="p-3 text-right">
                       <button
-                        onClick={() => setShowRemarksModal(en)}
-                        className="px-2.5 py-1 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg"
+                        onClick={() => setSelectedStudentId(studentId)}
+                        className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg font-bold text-[11px] inline-flex items-center gap-1"
                       >
-                        Remarks
-                      </button>
-                      <button
-                        onClick={() => setSelectedStudentId(en.student.id)}
-                        className="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg font-bold text-xs inline-flex items-center gap-1"
-                      >
-                        <FileText className="w-3.5 h-3.5" /> View Report
+                        <FileText className="w-3.5 h-3.5" /> Report Card
                       </button>
                     </td>
                   </tr>
@@ -234,112 +425,48 @@ export const GradesPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Assessment Component Weighting Modal */}
-      {showComponentModal && (
+      {/* Paste from Excel / CSV Modal */}
+      {showPasteModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full space-y-4 shadow-xl border border-slate-200">
+          <div className="bg-white rounded-2xl p-6 max-w-lg w-full space-y-4 shadow-2xl border border-slate-200">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-bold text-slate-900 text-base">Assessment Weightings Setup</h3>
-              <button onClick={() => setShowComponentModal(false)} className="text-slate-400 hover:text-slate-600">
+              <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                <FileSpreadsheet className="w-5 h-5 text-emerald-600" /> Paste Raw Scores from Excel
+              </h3>
+              <button onClick={() => setShowPasteModal(false)} className="text-slate-400 hover:text-slate-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateComponent} className="space-y-3">
-              <div>
-                <label className="text-xs font-semibold text-slate-700">Component Name</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Continuous Assessment"
-                  value={compName}
-                  onChange={(e) => setCompName(e.target.value)}
-                  className="w-full p-2 text-xs border border-slate-200 rounded-lg mt-1"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-700">Weight Percentage (%)</label>
-                <input
-                  type="number"
-                  required
-                  value={compWeight}
-                  onChange={(e) => setCompWeight(e.target.value)}
-                  className="w-full p-2 text-xs border border-slate-200 rounded-lg mt-1 font-bold"
-                />
-              </div>
-
-              <div className="pt-2 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowComponentModal(false)}
-                  className="px-3 py-1.5 border border-slate-200 text-slate-600 rounded-lg text-xs"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-1.5 bg-emerald-700 text-white rounded-lg text-xs font-bold hover:bg-emerald-800"
-                >
-                  Save Weighting
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Remarks Modal */}
-      {showRemarksModal && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full space-y-4 shadow-xl border border-slate-200">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div>
-                <h3 className="font-bold text-slate-900 text-base">Teacher Remarks</h3>
-                <p className="text-xs text-slate-500">Student: {showRemarksModal.student?.user?.fullName}</p>
-              </div>
-              <button onClick={() => setShowRemarksModal(null)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
-              </button>
+            <div className="space-y-3">
+              <p className="text-xs text-slate-600">
+                Copy raw score rows from Microsoft Excel or Google Sheets and paste below. Scores will populate matching columns in student row order.
+              </p>
+              <textarea
+                rows={6}
+                placeholder="Paste tab-separated or comma-separated rows here (e.g. 18, 17, 19, 16, 88)"
+                value={pasteText}
+                onChange={(e) => setPasteText(e.target.value)}
+                className="w-full p-3 text-xs font-mono border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500"
+              />
             </div>
 
-            <form onSubmit={handleSaveRemarks} className="space-y-3">
-              <div>
-                <label className="text-xs font-semibold text-slate-700">Form Teacher Remarks</label>
-                <textarea
-                  rows={3}
-                  value={formTeacherRemarks}
-                  onChange={(e) => setFormTeacherRemarks(e.target.value)}
-                  className="w-full p-2 text-xs border border-slate-200 rounded-lg mt-1"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-700">Headteacher Remarks & Promotion Decision</label>
-                <textarea
-                  rows={2}
-                  value={headteacherRemarks}
-                  onChange={(e) => setHeadteacherRemarks(e.target.value)}
-                  className="w-full p-2 text-xs border border-slate-200 rounded-lg mt-1"
-                />
-              </div>
-
-              <div className="pt-2 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowRemarksModal(null)}
-                  className="px-3 py-1.5 border border-slate-200 text-slate-600 rounded-lg text-xs"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold"
-                >
-                  Save Remarks
-                </button>
-              </div>
-            </form>
+            <div className="pt-2 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowPasteModal(false)}
+                className="px-3 py-1.5 border border-slate-200 text-slate-600 rounded-lg text-xs"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleBulkPaste}
+                className="px-4 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold flex items-center gap-1"
+              >
+                <Check className="w-4 h-4" /> Import Scores
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -348,8 +475,6 @@ export const GradesPage: React.FC = () => {
       {selectedStudentId && reportCardData && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150 overflow-y-auto">
           <div className="bg-white rounded-2xl max-w-2xl w-full p-6 space-y-6 shadow-2xl border border-slate-200 my-8">
-            
-            {/* Header Actions */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 print:hidden">
               <div className="flex items-center gap-2 font-bold text-slate-900 text-sm">
                 <Award className="w-5 h-5 text-amber-500" /> Terminal Academic Report Card Preview
@@ -367,95 +492,62 @@ export const GradesPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Ghana School Branded PDF Report Layout */}
+            {/* School Branded PDF Layout */}
             <div className="border-4 border-emerald-800 p-6 rounded-xl space-y-5 bg-white text-slate-900">
-              
-              {/* School Header */}
               <div className="text-center space-y-1 border-b-2 border-emerald-800 pb-4">
                 <h1 className="text-xl font-black text-emerald-900 uppercase tracking-wide">
                   {reportCardData.schoolProfile?.name || 'KINGS & QUEENS PREPARATORY SCHOOL'}
                 </h1>
                 <p className="text-xs font-bold text-slate-600 italic">
-                  "{reportCardData.schoolProfile?.motto || 'Ut Omnes Unum Sint'}"
+                  "{reportCardData.schoolProfile?.motto || 'Excellence, Royalty & Moral Leadership'}"
                 </p>
                 <p className="text-[11px] text-slate-500">
-                  {reportCardData.schoolProfile?.address || 'Achimota Mile 7, Accra, Ghana'} • Tel: {reportCardData.schoolProfile?.phone}
+                  {reportCardData.schoolProfile?.address || 'Accra, Ghana'} • Tel: {reportCardData.schoolProfile?.phone}
                 </p>
                 <div className="pt-2 inline-block px-4 py-1 bg-emerald-900 text-amber-300 font-bold text-xs uppercase tracking-wider rounded">
-                  STUDENT TERMINAL REPORT — TERM 1 (2025/2026)
+                  PUPIL TERMINAL REPORT — TERM 1 (2025/2026)
                 </div>
               </div>
 
-              {/* Student Metadata Table */}
               <div className="grid grid-cols-2 gap-4 text-xs font-medium border p-3 rounded-lg bg-slate-50/70 border-slate-200">
                 <div>
-                  <p>Student Name: <strong className="text-slate-900">{reportCardData.student.fullName}</strong></p>
+                  <p>Pupil Name: <strong className="text-slate-900">{reportCardData.student.fullName}</strong></p>
                   <p>Index Number: <strong className="text-emerald-800 font-mono">{reportCardData.student.studentId}</strong></p>
                   <p>Class Position: <strong className="text-amber-800 font-bold">{reportCardData.summary.positionInClass} st Out of 35</strong></p>
                 </div>
                 <div>
                   <p>Class & Stream: <strong className="text-slate-900">{reportCardData.student.class} ({reportCardData.student.stream})</strong></p>
                   <p>Form Teacher: <strong>{reportCardData.student.formTeacher}</strong></p>
-                  <p>Attendance Record: <strong className="text-slate-900">{reportCardData.student.attendanceCount || 48} Days Present</strong></p>
                 </div>
               </div>
 
-              {/* Subject Results Table */}
               <div>
                 <table className="w-full text-left border-collapse text-xs border border-slate-300">
                   <thead>
                     <tr className="bg-emerald-900 text-white font-bold">
                       <th className="p-2 border border-slate-300">Subject</th>
-                      <th className="p-2 border border-slate-300">Class Score (30%)</th>
-                      <th className="p-2 border border-slate-300">Exam (70%)</th>
+                      <th className="p-2 border border-slate-300">Class Score (40%)</th>
+                      <th className="p-2 border border-slate-300">Exam (60%)</th>
                       <th className="p-2 border border-slate-300">Total (100%)</th>
                       <th className="p-2 border border-slate-300">WAEC Grade</th>
                       <th className="p-2 border border-slate-300">Remarks</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr className="border-b border-slate-200">
-                      <td className="p-2 font-bold">Core Mathematics</td>
-                      <td className="p-2">26.5</td>
-                      <td className="p-2">62.0</td>
-                      <td className="p-2 font-bold text-emerald-800">88.5</td>
-                      <td className="p-2 font-black text-emerald-900">A1</td>
-                      <td className="p-2">Excellent</td>
-                    </tr>
-                    <tr className="border-b border-slate-200">
-                      <td className="p-2 font-bold">English Language</td>
-                      <td className="p-2">24.0</td>
-                      <td className="p-2">56.0</td>
-                      <td className="p-2 font-bold text-emerald-800">80.0</td>
-                      <td className="p-2 font-black text-emerald-900">A1</td>
-                      <td className="p-2">Excellent</td>
-                    </tr>
-                    <tr className="border-b border-slate-200">
-                      <td className="p-2 font-bold">Integrated Science</td>
-                      <td className="p-2">22.5</td>
-                      <td className="p-2">54.0</td>
-                      <td className="p-2 font-bold text-emerald-800">76.5</td>
-                      <td className="p-2 font-black text-emerald-900">B2</td>
-                      <td className="p-2">Very Good</td>
-                    </tr>
+                    {reportCardData.subjectResults?.map((res: any) => (
+                      <tr key={res.subjectCode} className="border-b border-slate-200">
+                        <td className="p-2 font-bold">{res.subjectName}</td>
+                        <td className="p-2">36.0</td>
+                        <td className="p-2">52.8</td>
+                        <td className="p-2 font-bold text-emerald-800">{res.totalScore}%</td>
+                        <td className="p-2 font-black text-emerald-900">{res.waecGrade}</td>
+                        <td className="p-2">{res.remark}</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
-
-              {/* Remarks Section */}
-              <div className="space-y-2 text-xs border-t border-slate-200 pt-3">
-                <div>
-                  <strong className="text-slate-900">Form Teacher Remarks:</strong>
-                  <p className="text-slate-700 italic">{reportCardData.summary.formTeacherRemarks}</p>
-                </div>
-                <div>
-                  <strong className="text-slate-900">Headteacher Remarks:</strong>
-                  <p className="text-slate-700 italic">{reportCardData.summary.headteacherRemarks}</p>
-                </div>
-              </div>
-
             </div>
-
           </div>
         </div>
       )}

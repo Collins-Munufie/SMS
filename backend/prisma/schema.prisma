@@ -59,14 +59,16 @@ model AcademicYear {
 }
 
 model Term {
-  id             String       @id @default(uuid())
-  academicYearId String
-  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
-  termNumber     Int          // 1, 2, or 3
-  termLabel      String       // e.g. "Term 1"
-  startDate      DateTime
-  endDate        DateTime
-  isCurrent      Boolean      @default(false)
+  id               String       @id @default(uuid())
+  academicYearId   String
+  academicYear     AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  termNumber       Int          // 1, 2, or 3
+  termLabel        String       // e.g. "Term 1"
+  startDate        DateTime
+  endDate          DateTime
+  isCurrent        Boolean      @default(false)
+  isExamWindowOpen Boolean      @default(true)
+  isTermLocked     Boolean      @default(false)
 
   enrollments    Enrollment[]
   termResults    TermResult[]
@@ -220,8 +222,9 @@ model AssessmentComponent {
   id               String   @id @default(uuid())
   classId          String
   class            Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
-  name             String   // e.g. "Class Score", "Terminal Exam"
-  weightPercentage Float    // e.g. 30.0 for Class score, 70.0 for Exam
+  name             String   // e.g. "Class Test 1", "Class Test 2", "Group Work/Project", "Homework/Exercises", "Terminal Exam"
+  weightPercentage Float    // e.g. 10.0, 60.0
+  maxScore         Float    @default(100)
   grades           Grade[]
 }
 
@@ -258,6 +261,7 @@ model TermResult {
   positionInClass    Int?
   formTeacherRemarks String?
   headteacherRemarks String?
+  isUpdated          Boolean  @default(false)
   createdAt          DateTime @default(now())
 
   @@unique([studentId, termId])
