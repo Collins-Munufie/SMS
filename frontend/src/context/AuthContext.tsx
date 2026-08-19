@@ -84,8 +84,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(res.data.user);
       localStorage.setItem('sms_token', res.data.token);
       localStorage.setItem('sms_user', JSON.stringify(res.data.user));
-    } catch (err) {
+    } catch (err: any) {
       console.error('Role switch failed:', err);
+      alert(err.response?.data?.error || `Failed to switch to role ${role}`);
     } finally {
       setIsLoading(false);
     }

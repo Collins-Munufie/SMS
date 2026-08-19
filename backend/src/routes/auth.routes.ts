@@ -134,7 +134,7 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => 
   }
 });
 
-// POST /api/auth/switch-role (Quick dev role impersonation helper)
+// POST /api/auth/switch-role (Quick dev role impersonation helper with fallbacks)
 router.post('/switch-role', async (req: Request, res: Response) => {
   try {
     const { role } = req.body;
@@ -142,10 +142,18 @@ router.post('/switch-role', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid role specified' });
     }
 
-    const targetUser = await prisma.user.findFirst({
+    let targetUser = await prisma.user.findFirst({
       where: { role: role as Role, isActive: true },
       include: { studentProfile: true },
     });
+
+    // Fallback for TEACHER / FORM_TEACHER if specific role record is inactive
+    if (!targetUser && (role === Role.TEACHER || role === Role.FORM_TEACHER)) {
+      targetUser = await prisma.user.findFirst({
+        where: { role: { in: [Role.TEACHER, Role.FORM_TEACHER] }, isActive: true },
+        include: { studentProfile: true },
+      });
+    }
 
     if (!targetUser) {
       return res.status(404).json({ error: `No active demo user found for role ${role}` });
@@ -161,7 +169,7 @@ router.post('/switch-role', async (req: Request, res: Response) => {
     const token = jwt.sign(payload, config.jwtSecret, { expiresIn: '1d' });
 
     res.json({
-      message: `Switched to ${role}`,
+      message: `Switched to ${targetUser.role}`,
       token,
       user: {
         id: targetUser.id,
