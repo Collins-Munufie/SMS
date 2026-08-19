@@ -31,12 +31,12 @@ export const Navbar: React.FC = () => {
           </div>
           <div>
             <h1 className="font-bold text-slate-900 text-base sm:text-lg leading-tight flex items-center gap-2">
-              Achimota School SMS
+              Achimota Basic School SMS
               <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-emerald-100 text-emerald-800 border border-emerald-200">
-                GHS ₵
+                KG 1 – Basic 9
               </span>
             </h1>
-            <p className="text-xs text-slate-500 hidden sm:block">Academic Year 2025/2026 • Term 1</p>
+            <p className="text-xs text-slate-500 hidden sm:block">Ghana Basic Education Structure • Term 1 (2025/2026)</p>
           </div>
         </div>
 
@@ -46,7 +46,7 @@ export const Navbar: React.FC = () => {
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search students, index numbers, staff, or fee records..."
+              placeholder="Search basic students, index numbers, staff, or fee records..."
               className="w-full pl-9 pr-4 py-1.5 text-xs bg-slate-100 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition"
             />
           </div>
@@ -107,7 +107,7 @@ export const Navbar: React.FC = () => {
             />
             <div className="hidden lg:block text-left">
               <div className="text-xs font-bold text-slate-800 leading-tight">{user?.fullName || 'Demo Admin'}</div>
-              <div className="text-[10px] text-slate-500">{user?.email || 'admin@achimota.edu.gh'}</div>
+              <div className="text-[10px] text-slate-500">{user?.email || 'admin@achimotabasic.edu.gh'}</div>
             </div>
             <button
               onClick={logout}

@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Seeding Ghana School Management System Database...');
+  console.log('🌱 Seeding Ghana Basic Education School Management System (KG 1 - Basic 9)...');
 
   // 1. Clear existing data
   await prisma.borrowRecord.deleteMany();
@@ -18,6 +18,7 @@ async function main() {
   await prisma.grade.deleteMany();
   await prisma.assessmentComponent.deleteMany();
   await prisma.attendance.deleteMany();
+  await prisma.timetableSlot.deleteMany();
   await prisma.enrollment.deleteMany();
   await prisma.studentGuardian.deleteMany();
   await prisma.guardian.deleteMany();
@@ -31,25 +32,25 @@ async function main() {
   await prisma.user.deleteMany();
   await prisma.schoolProfile.deleteMany();
 
-  // 2. School Profile
+  // 2. School Profile - Ghana Basic Education
   const school = await prisma.schoolProfile.create({
     data: {
-      name: 'Achimota Basic & Senior High School',
-      motto: 'Ut Omnes Unum Sint (That They All May Be One)',
+      name: 'Achimota Basic School',
+      motto: 'Knowledge, Character & Excellence (KG 1 - Basic 9)',
       logoUrl: 'https://images.unsplash.com/photo-1546410531-bb4caa6b424d?auto=format&fit=crop&q=80&w=250',
       address: 'Achimota Mile 7, Accra, Ghana',
       phone: '+233 24 123 4567',
-      email: 'info@achimotaschool.edu.gh',
-      website: 'https://achimotaschool.edu.gh',
+      email: 'info@achimotabasic.edu.gh',
+      website: 'https://achimotabasic.edu.gh',
       region: 'Greater Accra',
       city: 'Accra',
       country: 'Ghana',
       currency: 'GHS',
     },
   });
-  console.log('✅ Created School Profile:', school.name);
+  console.log('✅ Created Basic School Profile:', school.name);
 
-  // 3. Academic Years & Terms
+  // 3. Academic Years & 3 Terms
   const academicYear = await prisma.academicYear.create({
     data: {
       yearLabel: '2025/2026',
@@ -81,7 +82,7 @@ async function main() {
     },
   });
 
-  const term3 = await prisma.term.create({
+  await prisma.term.create({
     data: {
       academicYearId: academicYear.id,
       termNumber: 3,
@@ -99,7 +100,7 @@ async function main() {
   // 5. Users for All 8 Roles
   const superAdminUser = await prisma.user.create({
     data: {
-      email: 'superadmin@achimota.edu.gh',
+      email: 'superadmin@achimotabasic.edu.gh',
       passwordHash: defaultPasswordHash,
       fullName: 'Dr. Emmanuel K. Addo',
       role: 'SUPER_ADMIN',
@@ -110,7 +111,7 @@ async function main() {
 
   const adminUser = await prisma.user.create({
     data: {
-      email: 'registrar@achimota.edu.gh',
+      email: 'registrar@achimotabasic.edu.gh',
       passwordHash: defaultPasswordHash,
       fullName: 'Mrs. Patience Baidoo',
       role: 'ADMIN',
@@ -121,7 +122,7 @@ async function main() {
 
   const mathTeacherUser = await prisma.user.create({
     data: {
-      email: 'kwaku.browning@achimota.edu.gh',
+      email: 'kwaku.browning@achimotabasic.edu.gh',
       passwordHash: defaultPasswordHash,
       fullName: 'Mr. Kwaku Browning',
       role: 'TEACHER',
@@ -132,7 +133,7 @@ async function main() {
 
   const formTeacherUser = await prisma.user.create({
     data: {
-      email: 'abena.mensah@achimota.edu.gh',
+      email: 'abena.mensah@achimotabasic.edu.gh',
       passwordHash: defaultPasswordHash,
       fullName: 'Ms. Abena Mensah',
       role: 'FORM_TEACHER',
@@ -143,7 +144,7 @@ async function main() {
 
   const bursarUser = await prisma.user.create({
     data: {
-      email: 'accountant@achimota.edu.gh',
+      email: 'accountant@achimotabasic.edu.gh',
       passwordHash: defaultPasswordHash,
       fullName: 'Mr. Fiifi Amoah (Bursar)',
       role: 'BURSAR',
@@ -165,7 +166,7 @@ async function main() {
 
   const librarianUser = await prisma.user.create({
     data: {
-      email: 'librarian@achimota.edu.gh',
+      email: 'librarian@achimotabasic.edu.gh',
       passwordHash: defaultPasswordHash,
       fullName: 'Mrs. Janet Quartey',
       role: 'LIBRARIAN',
@@ -176,7 +177,7 @@ async function main() {
 
   const studentUser1 = await prisma.user.create({
     data: {
-      email: 'kwame.osei@student.achimota.edu.gh',
+      email: 'kwame.osei@student.achimotabasic.edu.gh',
       passwordHash: defaultPasswordHash,
       fullName: 'Kwame Osei',
       role: 'STUDENT',
@@ -187,7 +188,7 @@ async function main() {
 
   const studentUser2 = await prisma.user.create({
     data: {
-      email: 'ama.tutu@student.achimota.edu.gh',
+      email: 'ama.tutu@student.achimotabasic.edu.gh',
       passwordHash: defaultPasswordHash,
       fullName: 'Ama Tutu',
       role: 'STUDENT',
@@ -197,61 +198,95 @@ async function main() {
   });
   console.log('✅ Created Core Users for 8 Roles');
 
-  // 6. Classes & Streams
-  const jhs1 = await prisma.class.create({
-    data: { name: 'JHS 1', code: 'JHS1', level: 'JHS' },
-  });
-  const jhs2 = await prisma.class.create({
-    data: { name: 'JHS 2', code: 'JHS2', level: 'JHS' },
-  });
-  const shs1 = await prisma.class.create({
-    data: { name: 'SHS 1', code: 'SHS1-ARTS', level: 'SHS' },
-  });
+  // 6. Ghanaian Basic Education Structure Classes (KG 1 to Basic 9 ONLY)
+  const kg1 = await prisma.class.create({ data: { name: 'KG 1', code: 'KG1', level: 'KINDERGARTEN' } });
+  const kg2 = await prisma.class.create({ data: { name: 'KG 2', code: 'KG2', level: 'KINDERGARTEN' } });
+  const b1 = await prisma.class.create({ data: { name: 'Basic 1', code: 'B1', level: 'PRIMARY' } });
+  const b2 = await prisma.class.create({ data: { name: 'Basic 2', code: 'B2', level: 'PRIMARY' } });
+  const b3 = await prisma.class.create({ data: { name: 'Basic 3', code: 'B3', level: 'PRIMARY' } });
+  const b4 = await prisma.class.create({ data: { name: 'Basic 4', code: 'B4', level: 'PRIMARY' } });
+  const b5 = await prisma.class.create({ data: { name: 'Basic 5', code: 'B5', level: 'PRIMARY' } });
+  const b6 = await prisma.class.create({ data: { name: 'Basic 6', code: 'B6', level: 'PRIMARY' } });
+  const b7 = await prisma.class.create({ data: { name: 'Basic 7', code: 'B7', level: 'JHS' } });
+  const b8 = await prisma.class.create({ data: { name: 'Basic 8', code: 'B8', level: 'JHS' } });
+  const b9 = await prisma.class.create({ data: { name: 'Basic 9', code: 'B9', level: 'JHS' } }); // Terminal level for BECE
 
-  const jhs1Gold = await prisma.stream.create({
+  // Streams / Sections for Classes
+  const b7A = await prisma.stream.create({
     data: {
-      classId: jhs1.id,
-      name: 'Gold',
+      classId: b7.id,
+      name: 'A',
       formTeacherId: formTeacherUser.id,
     },
   });
 
   await prisma.stream.create({
     data: {
-      classId: jhs1.id,
-      name: 'Green',
+      classId: b7.id,
+      name: 'B',
     },
   });
 
   await prisma.stream.create({
     data: {
-      classId: shs1.id,
-      name: 'General Arts 1',
+      classId: b8.id,
+      name: 'A',
     },
   });
-  console.log('✅ Created Classes & Streams');
 
-  // 7. Subjects
+  await prisma.stream.create({
+    data: {
+      classId: b9.id,
+      name: 'A (BECE Candidate Class)',
+      formTeacherId: formTeacherUser.id,
+    },
+  });
+
+  await prisma.stream.create({
+    data: {
+      classId: b4.id,
+      name: 'A',
+    },
+  });
+
+  await prisma.stream.create({
+    data: {
+      classId: kg1.id,
+      name: 'A',
+    },
+  });
+  console.log('✅ Created Ghana Basic Education Levels (KG 1 to Basic 9) & Streams');
+
+  // 7. Core Basic Education Subjects
   const coreMath = await prisma.subject.create({
-    data: { name: 'Core Mathematics', code: 'MATH101', category: 'CORE', description: 'Basic and High School Core Mathematics' },
+    data: { name: 'Mathematics', code: 'MATH-BASIC', category: 'CORE', description: 'Ghana Basic Education Mathematics Curriculum' },
   });
   const english = await prisma.subject.create({
-    data: { name: 'English Language', code: 'ENG101', category: 'CORE', description: 'Grammar, Comprehension and Essay Writing' },
+    data: { name: 'English Language', code: 'ENG-BASIC', category: 'CORE', description: 'Reading, Grammar, Comprehension and Composition' },
   });
-  await prisma.subject.create({
-    data: { name: 'Integrated Science', code: 'SCI101', category: 'CORE', description: 'Physics, Chemistry, Biology Foundations' },
+  const science = await prisma.subject.create({
+    data: { name: 'Integrated Science', code: 'SCI-BASIC', category: 'CORE', description: 'Foundational Natural and Physical Sciences' },
   });
-  await prisma.subject.create({
-    data: { name: 'Social Studies', code: 'SOC101', category: 'CORE', description: 'Governance, Culture, Environment' },
+  const socialStudies = await prisma.subject.create({
+    data: { name: 'Social Studies', code: 'SOC-BASIC', category: 'CORE', description: 'Environment, Governance and Citizenship' },
   });
-  await prisma.subject.create({
-    data: { name: 'Information & Communication Technology', code: 'ICT101', category: 'CORE', description: 'Computer Basics, Practical Applications' },
+  const ict = await prisma.subject.create({
+    data: { name: 'Computing / ICT', code: 'ICT-BASIC', category: 'CORE', description: 'Digital Literacy and Computing' },
+  });
+  const rme = await prisma.subject.create({
+    data: { name: 'Religious & Moral Education (RME)', code: 'RME-BASIC', category: 'CORE', description: 'Moral, Ethical and Spiritual Development' },
+  });
+  const ghanaianLang = await prisma.subject.create({
+    data: { name: 'Ghanaian Language & Culture (Twi/Ga/Ewe)', code: 'GHL-BASIC', category: 'CORE', description: 'Local Language and Cultural Heritage' },
+  });
+  const bdt = await prisma.subject.create({
+    data: { name: 'Creative Arts & Design', code: 'CAD-BASIC', category: 'CORE', description: 'Visual Arts and Design Technology' },
   });
 
-  // Assign teachers to subjects in streams
+  // Assign teachers
   await prisma.classSubjectTeacher.create({
     data: {
-      streamId: jhs1Gold.id,
+      streamId: b7A.id,
       subjectId: coreMath.id,
       teacherId: mathTeacherUser.id,
     },
@@ -259,25 +294,25 @@ async function main() {
 
   await prisma.classSubjectTeacher.create({
     data: {
-      streamId: jhs1Gold.id,
+      streamId: b7A.id,
       subjectId: english.id,
       teacherId: formTeacherUser.id,
     },
   });
-  console.log('✅ Created Subjects & Teacher Assignments');
+  console.log('✅ Created Ghana Basic Education Subjects & Assignments');
 
   // 8. Assessment Components
   const classScoreComp = await prisma.assessmentComponent.create({
     data: {
-      classId: jhs1.id,
-      name: 'Class Score (Continuous Assessment)',
+      classId: b7.id,
+      name: 'Class Assessment / Class Score',
       weightPercentage: 30.0,
     },
   });
 
   const terminalExamComp = await prisma.assessmentComponent.create({
     data: {
-      classId: jhs1.id,
+      classId: b7.id,
       name: 'Terminal Exam',
       weightPercentage: 70.0,
     },
@@ -288,7 +323,7 @@ async function main() {
     data: {
       studentId: 'SMS-2025-001',
       userId: studentUser1.id,
-      dob: new Date('2011-04-14'),
+      dob: new Date('2012-04-14'),
       gender: 'MALE',
       address: 'House No. 14, Mile 7, Achimota, Accra',
       photoUrl: studentUser1.avatarUrl,
@@ -301,7 +336,7 @@ async function main() {
     data: {
       studentId: 'SMS-2025-002',
       userId: studentUser2.id,
-      dob: new Date('2011-08-22'),
+      dob: new Date('2012-08-22'),
       gender: 'FEMALE',
       address: 'Block B, Dome Pillar 2, Accra',
       photoUrl: studentUser2.avatarUrl,
@@ -327,13 +362,13 @@ async function main() {
       isPrimary: true,
     },
   });
-  console.log('✅ Created Students & Guardian Mapping');
+  console.log('✅ Created Basic Students & Guardian Mapping');
 
   // 10. Enrollments
   await prisma.enrollment.create({
     data: {
       studentId: student1.id,
-      streamId: jhs1Gold.id,
+      streamId: b7A.id,
       termId: term1.id,
       rollNumber: 1,
     },
@@ -342,7 +377,7 @@ async function main() {
   await prisma.enrollment.create({
     data: {
       studentId: student2.id,
-      streamId: jhs1Gold.id,
+      streamId: b7A.id,
       termId: term1.id,
       rollNumber: 2,
     },
@@ -353,7 +388,7 @@ async function main() {
   await prisma.attendance.create({
     data: {
       studentId: student1.id,
-      streamId: jhs1Gold.id,
+      streamId: b7A.id,
       date: today,
       status: 'PRESENT',
       markedById: formTeacherUser.id,
@@ -361,25 +396,15 @@ async function main() {
     },
   });
 
-  await prisma.attendance.create({
-    data: {
-      studentId: student2.id,
-      streamId: jhs1Gold.id,
-      date: today,
-      status: 'PRESENT',
-      markedById: formTeacherUser.id,
-    },
-  });
-
   // 12. Sample Grades & Result
   await prisma.grade.create({
     data: {
       studentId: student1.id,
-      streamId: jhs1Gold.id,
+      streamId: b7A.id,
       subjectId: coreMath.id,
       termId: term1.id,
       componentId: classScoreComp.id,
-      score: 26.5,
+      score: 27.0,
       maxScore: 30,
     },
   });
@@ -387,11 +412,11 @@ async function main() {
   await prisma.grade.create({
     data: {
       studentId: student1.id,
-      streamId: jhs1Gold.id,
+      streamId: b7A.id,
       subjectId: coreMath.id,
       termId: term1.id,
       componentId: terminalExamComp.id,
-      score: 62.0,
+      score: 64.0,
       maxScore: 70,
     },
   });
@@ -399,24 +424,24 @@ async function main() {
   await prisma.termResult.create({
     data: {
       studentId: student1.id,
-      streamId: jhs1Gold.id,
+      streamId: b7A.id,
       termId: term1.id,
-      totalScore: 88.5,
-      averageScore: 88.5,
+      totalScore: 91.0,
+      averageScore: 91.0,
       waecGrade: 'A1',
       positionInClass: 1,
-      formTeacherRemarks: 'An outstanding performance in Mathematics. Keep up the high standard.',
-      headteacherRemarks: 'Promising student with excellent discipline.',
+      formTeacherRemarks: 'Outstanding basic education student. Excellent conduct.',
+      headteacherRemarks: 'Promoted to Basic 8.',
     },
   });
 
-  // 13. Fee Structure & Invoices (GHS Currency)
+  // 13. Fee Structure & Invoices (GHS Currency for Basic School)
   await prisma.feeStructure.createMany({
     data: [
-      { classId: jhs1.id, termId: term1.id, name: 'Tuition Fee', amount: 850.00, description: 'Term 1 Tuition' },
-      { classId: jhs1.id, termId: term1.id, name: 'Feeding & Welfare', amount: 350.00, description: 'Daily lunch & school welfare' },
-      { classId: jhs1.id, termId: term1.id, name: 'PTA Levy', amount: 100.00, description: 'Parent Teacher Association Levy' },
-      { classId: jhs1.id, termId: term1.id, name: 'Examination Fee', amount: 150.00, description: 'Terminal Exam Materials' },
+      { classId: b7.id, termId: term1.id, name: 'Basic Tuition & Facility Levy', amount: 650.00, description: 'Term 1 Basic Tuition' },
+      { classId: b7.id, termId: term1.id, name: 'Feeding & Canteen', amount: 300.00, description: 'Daily basic meal program' },
+      { classId: b7.id, termId: term1.id, name: 'PTA Dues', amount: 80.00, description: 'Parent Teacher Association Levy' },
+      { classId: b7.id, termId: term1.id, name: 'Terminal Examination Fee', amount: 120.00, description: 'Exam Papers & Printing' },
     ],
   });
 
@@ -425,9 +450,9 @@ async function main() {
       invoiceNumber: 'INV-2025-001',
       studentId: student1.id,
       termId: term1.id,
-      totalAmount: 1450.00,
-      amountPaid: 1000.00,
-      balance: 450.00,
+      totalAmount: 1150.00,
+      amountPaid: 800.00,
+      balance: 350.00,
       status: 'PARTIAL',
       dueDate: new Date('2025-10-31'),
     },
@@ -437,44 +462,35 @@ async function main() {
     data: {
       receiptNumber: 'REC-2025-001',
       invoiceId: invoice.id,
-      amountPaid: 1000.00,
+      amountPaid: 800.00,
       paymentDate: new Date('2025-09-15'),
       paymentMethod: 'MOMO_MTN',
-      referenceNumber: 'MTN-293848103',
+      referenceNumber: 'MTN-998811002',
       receivedById: bursarUser.id,
       notes: 'Paid via MTN Mobile Money',
     },
   });
-  console.log('✅ Created Fee Structure, Invoices & Mobile Money Payments (GHS)');
+  console.log('✅ Created Basic School Fee Structure, Invoices & MoMo Payments');
 
   // 14. Announcements
   await prisma.announcement.create({
     data: {
-      title: 'Welcome to Academic Year 2025/2026',
-      content: 'Dear Parents, Staff, and Students, we warmly welcome everyone to Term 1. PTA meeting is scheduled for Friday at 3:00 PM.',
+      title: 'Welcome to Academic Year 2025/2026 — Basic Education',
+      content: 'Dear Parents, Staff, and Students, welcome to Term 1 of Basic Education (KG 1 to Basic 9). BECE orientation for Basic 9 candidates will be announced shortly.',
       authorId: superAdminUser.id,
       priority: 'HIGH',
     },
   });
 
-  await prisma.announcement.create({
-    data: {
-      title: 'Mid-Term Break Announcement',
-      content: 'Please take note that mid-term break starts on October 24th. Mid-term assessments will be published online.',
-      authorId: adminUser.id,
-      priority: 'NORMAL',
-    },
-  });
-
-  // 15. Library Books
+  // 15. Library Books for Basic School
   const book = await prisma.book.create({
     data: {
-      title: 'Cockcrow: Literature for Junior High Schools',
+      title: 'Cockcrow: Literature for Basic Schools (Basic 7-9)',
       author: 'Ghana Education Service',
       isbn: '978-9988-1-1234-5',
       category: 'Literature',
-      totalCopies: 50,
-      availableCopies: 49,
+      totalCopies: 60,
+      availableCopies: 59,
     },
   });
 
@@ -488,7 +504,7 @@ async function main() {
     },
   });
 
-  console.log('🎉 Seeding completed successfully!');
+  console.log('🎉 Seeding completed successfully for Ghana Basic Education (KG 1 - Basic 9)!');
 }
 
 main()
