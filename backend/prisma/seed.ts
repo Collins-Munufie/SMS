@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Seeding Kings & Queens Preparatory School (KG 1 - Basic 9)...');
+  console.log('🌱 Seeding Kings & Queens Preparatory School (Full KG 1 - Basic 9 Stream Allocations)...');
 
   // 1. Clear existing data
   await prisma.borrowRecord.deleteMany();
@@ -50,7 +50,7 @@ async function main() {
   });
   console.log('✅ Created School Profile:', school.name);
 
-  // 3. Academic Years & 3 Terms
+  // 3. Academic Year & Terms
   const academicYear = await prisma.academicYear.create({
     data: {
       yearLabel: '2025/2026',
@@ -96,7 +96,7 @@ async function main() {
   });
   console.log('✅ Created Academic Year & 3 Terms');
 
-  // 4. Default Password Hash
+  // 4. Default Passwords Hashed
   const defaultPasswordHash = await bcrypt.hash('Password123!', 10);
 
   // 5. Core Users for All 8 Roles
@@ -200,36 +200,59 @@ async function main() {
   });
   console.log('✅ Created Core Users for 8 Roles');
 
-  // 6. Classes (KG 1 to Basic 9 ONLY)
-  const kg1 = await prisma.class.create({ data: { name: 'KG 1', code: 'KG1', level: 'KINDERGARTEN' } });
-  const kg2 = await prisma.class.create({ data: { name: 'KG 2', code: 'KG2', level: 'KINDERGARTEN' } });
-  const b1 = await prisma.class.create({ data: { name: 'Basic 1', code: 'B1', level: 'PRIMARY' } });
-  const b2 = await prisma.class.create({ data: { name: 'Basic 2', code: 'B2', level: 'PRIMARY' } });
-  const b3 = await prisma.class.create({ data: { name: 'Basic 3', code: 'B3', level: 'PRIMARY' } });
-  const b4 = await prisma.class.create({ data: { name: 'Basic 4', code: 'B4', level: 'PRIMARY' } });
-  const b5 = await prisma.class.create({ data: { name: 'Basic 5', code: 'B5', level: 'PRIMARY' } });
-  const b6 = await prisma.class.create({ data: { name: 'Basic 6', code: 'B6', level: 'PRIMARY' } });
-  const b7 = await prisma.class.create({ data: { name: 'Basic 7', code: 'B7', level: 'JHS' } });
-  const b8 = await prisma.class.create({ data: { name: 'Basic 8', code: 'B8', level: 'JHS' } });
-  const b9 = await prisma.class.create({ data: { name: 'Basic 9', code: 'B9', level: 'JHS' } });
+  // 6. Create ALL 11 Basic Education Classes (KG 1 to Basic 9)
+  const classList = [
+    { name: 'KG 1', code: 'KG1', level: 'KINDERGARTEN' },
+    { name: 'KG 2', code: 'KG2', level: 'KINDERGARTEN' },
+    { name: 'Basic 1', code: 'B1', level: 'PRIMARY' },
+    { name: 'Basic 2', code: 'B2', level: 'PRIMARY' },
+    { name: 'Basic 3', code: 'B3', level: 'PRIMARY' },
+    { name: 'Basic 4', code: 'B4', level: 'PRIMARY' },
+    { name: 'Basic 5', code: 'B5', level: 'PRIMARY' },
+    { name: 'Basic 6', code: 'B6', level: 'PRIMARY' },
+    { name: 'Basic 7', code: 'B7', level: 'JHS' },
+    { name: 'Basic 8', code: 'B8', level: 'JHS' },
+    { name: 'Basic 9', code: 'B9', level: 'JHS' },
+  ];
 
-  // Streams
-  const b7A = await prisma.stream.create({
-    data: {
-      classId: b7.id,
-      name: 'A',
-      formTeacherId: formTeacherUser.id,
-    },
-  });
+  const createdClasses: Record<string, any> = {};
+  const createdStreams: Record<string, any> = {};
 
+  for (const c of classList) {
+    const cls = await prisma.class.create({ data: c });
+    createdClasses[c.code] = cls;
+
+    // Create Stream A for EVERY class level
+    const streamA = await prisma.stream.create({
+      data: {
+        classId: cls.id,
+        name: 'A',
+        formTeacherId: c.code === 'B7' || c.code === 'B9' ? formTeacherUser.id : null,
+      },
+    });
+    createdStreams[`${c.code}_A`] = streamA;
+
+    // Admin Assessment Component Setup for ALL 11 classes
+    await prisma.assessmentComponent.createMany({
+      data: [
+        { classId: cls.id, name: 'Class Test 1', weightPercentage: 10.0, maxScore: 20.0 },
+        { classId: cls.id, name: 'Class Test 2', weightPercentage: 10.0, maxScore: 20.0 },
+        { classId: cls.id, name: 'Group Work / Project', weightPercentage: 10.0, maxScore: 20.0 },
+        { classId: cls.id, name: 'Homework / Exercises', weightPercentage: 10.0, maxScore: 20.0 },
+        { classId: cls.id, name: 'Terminal Exam', weightPercentage: 60.0, maxScore: 100.0 },
+      ],
+    });
+  }
+
+  // Create Stream B for Basic 7
   const b7B = await prisma.stream.create({
-    data: {
-      classId: b7.id,
-      name: 'B',
-    },
+    data: { classId: createdClasses['B7'].id, name: 'B' },
   });
+  createdStreams['B7_B'] = b7B;
 
-  // 7. Core Basic Education Subjects
+  console.log('✅ Created ALL 11 Basic Education Classes (KG 1 - Basic 9) & Streams A/B');
+
+  // 7. Core Basic Subjects
   const coreMath = await prisma.subject.create({
     data: { name: 'Mathematics', code: 'MATH-BASIC', category: 'CORE', description: 'Ghana Basic Education Mathematics' },
   });
@@ -240,51 +263,34 @@ async function main() {
     data: { name: 'Integrated Science', code: 'SCI-BASIC', category: 'CORE', description: 'Foundational Natural Sciences' },
   });
 
-  // Teacher Allocations (Strictly Scope Assigned Subjects)
-  await prisma.classSubjectTeacher.create({
-    data: {
-      streamId: b7A.id,
-      subjectId: coreMath.id,
-      teacherId: mathTeacherUser.id,
-    },
-  });
+  // Teacher Allocations Across Multiple Classes (Basic 1, Basic 4, Basic 6, Basic 7A, Basic 7B, Basic 8, Basic 9)
+  const allocList = [
+    { streamKey: 'B1_A', subject: coreMath, teacher: mathTeacherUser },
+    { streamKey: 'B4_A', subject: coreMath, teacher: mathTeacherUser },
+    { streamKey: 'B6_A', subject: coreMath, teacher: mathTeacherUser },
+    { streamKey: 'B7_A', subject: coreMath, teacher: mathTeacherUser },
+    { streamKey: 'B7_B', subject: coreMath, teacher: mathTeacherUser },
+    { streamKey: 'B8_A', subject: coreMath, teacher: mathTeacherUser },
+    { streamKey: 'B9_A', subject: coreMath, teacher: mathTeacherUser },
+    { streamKey: 'B7_A', subject: english, teacher: formTeacherUser },
+    { streamKey: 'B6_A', subject: english, teacher: formTeacherUser },
+  ];
 
-  await prisma.classSubjectTeacher.create({
-    data: {
-      streamId: b7B.id,
-      subjectId: coreMath.id,
-      teacherId: mathTeacherUser.id,
-    },
-  });
+  for (const a of allocList) {
+    const streamObj = createdStreams[a.streamKey];
+    if (streamObj) {
+      await prisma.classSubjectTeacher.create({
+        data: {
+          streamId: streamObj.id,
+          subjectId: a.subject.id,
+          teacherId: a.teacher.id,
+        },
+      });
+    }
+  }
+  console.log('✅ Created Multi-Class Teacher Subject Allocations (Basic 1, 4, 6, 7A, 7B, 8, 9)');
 
-  await prisma.classSubjectTeacher.create({
-    data: {
-      streamId: b7A.id,
-      subjectId: english.id,
-      teacherId: formTeacherUser.id,
-    },
-  });
-  console.log('✅ Created Teacher Subject Allocations');
-
-  // 8. Admin-Configured Assessment Components with Max Scores & Weights
-  const test1 = await prisma.assessmentComponent.create({
-    data: { classId: b7.id, name: 'Class Test 1', weightPercentage: 10.0, maxScore: 20.0 },
-  });
-  const test2 = await prisma.assessmentComponent.create({
-    data: { classId: b7.id, name: 'Class Test 2', weightPercentage: 10.0, maxScore: 20.0 },
-  });
-  const project = await prisma.assessmentComponent.create({
-    data: { classId: b7.id, name: 'Group Work / Project', weightPercentage: 10.0, maxScore: 20.0 },
-  });
-  const homework = await prisma.assessmentComponent.create({
-    data: { classId: b7.id, name: 'Homework / Exercises', weightPercentage: 10.0, maxScore: 20.0 },
-  });
-  const exam = await prisma.assessmentComponent.create({
-    data: { classId: b7.id, name: 'Terminal Exam', weightPercentage: 60.0, maxScore: 100.0 },
-  });
-  console.log('✅ Created Admin-Configured CA & Exam Weightings');
-
-  // 9. Students & Guardians
+  // 8. Students & Guardians
   const student1 = await prisma.student.create({
     data: {
       studentId: 'SMS-2025-001',
@@ -329,33 +335,62 @@ async function main() {
     },
   });
 
-  // 10. Enrollments
+  // 9. Enrollments across Basic 7A
+  const stream7A = createdStreams['B7_A'];
   await prisma.enrollment.create({
-    data: { studentId: student1.id, streamId: b7A.id, termId: term1.id, rollNumber: 1 },
+    data: { studentId: student1.id, streamId: stream7A.id, termId: term1.id, rollNumber: 1 },
   });
 
   await prisma.enrollment.create({
-    data: { studentId: student2.id, streamId: b7A.id, termId: term1.id, rollNumber: 2 },
+    data: { studentId: student2.id, streamId: stream7A.id, termId: term1.id, rollNumber: 2 },
   });
 
-  // 11. Initial CA Sample Scores
-  await prisma.grade.create({
-    data: { studentId: student1.id, streamId: b7A.id, subjectId: coreMath.id, termId: term1.id, componentId: test1.id, score: 18.0, maxScore: 20.0 },
-  });
-  await prisma.grade.create({
-    data: { studentId: student1.id, streamId: b7A.id, subjectId: coreMath.id, termId: term1.id, componentId: test2.id, score: 17.0, maxScore: 20.0 },
-  });
-  await prisma.grade.create({
-    data: { studentId: student1.id, streamId: b7A.id, subjectId: coreMath.id, termId: term1.id, componentId: project.id, score: 19.0, maxScore: 20.0 },
-  });
-  await prisma.grade.create({
-    data: { studentId: student1.id, streamId: b7A.id, subjectId: coreMath.id, termId: term1.id, componentId: homework.id, score: 16.0, maxScore: 20.0 },
-  });
-  await prisma.grade.create({
-    data: { studentId: student1.id, streamId: b7A.id, subjectId: coreMath.id, termId: term1.id, componentId: exam.id, score: 88.0, maxScore: 100.0 },
+  // 10. Fee Structures & MoMo Invoices
+  await prisma.feeStructure.createMany({
+    data: [
+      { classId: createdClasses['B7'].id, termId: term1.id, name: 'Basic Tuition Levy', amount: 650.00, description: 'Term 1 Tuition' },
+      { classId: createdClasses['B7'].id, termId: term1.id, name: 'Feeding & Canteen', amount: 300.00, description: 'Daily canteen' },
+      { classId: createdClasses['B7'].id, termId: term1.id, name: 'PTA Dues', amount: 80.00, description: 'PTA Levy' },
+    ],
   });
 
-  console.log('🎉 Seeding completed for Teacher CA Module!');
+  const invoice = await prisma.invoice.create({
+    data: {
+      invoiceNumber: 'INV-2025-001',
+      studentId: student1.id,
+      termId: term1.id,
+      totalAmount: 1030.00,
+      amountPaid: 800.00,
+      balance: 230.00,
+      status: 'PARTIAL',
+      dueDate: new Date('2025-10-31'),
+    },
+  });
+
+  await prisma.payment.create({
+    data: {
+      receiptNumber: 'REC-2025-001',
+      invoiceId: invoice.id,
+      amountPaid: 800.00,
+      paymentDate: new Date('2025-09-15'),
+      paymentMethod: 'MOMO_MTN',
+      referenceNumber: 'MTN-998811002',
+      receivedById: bursarUser.id,
+      notes: 'Paid via MTN Mobile Money',
+    },
+  });
+
+  // 11. Announcements
+  await prisma.announcement.create({
+    data: {
+      title: 'Welcome to Kings & Queens Preparatory School (2025/2026)',
+      content: 'Welcome to Term 1 of Basic Education (KG 1 to Basic 9). BECE orientation for Basic 9 candidate class is scheduled for next week.',
+      authorId: superAdminUser.id,
+      priority: 'HIGH',
+    },
+  });
+
+  console.log('🎉 Full Seeding completed! Streams and allocations exist for ALL 11 Basic Education levels (KG 1 - Basic 9).');
 }
 
 main()
