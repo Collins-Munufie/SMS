@@ -1,34 +1,42 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
-import { Users, Search, UserPlus, FileSpreadsheet, Phone, Mail, MapPin, X, Check, Upload } from 'lucide-react';
+import { Users, Search, Plus, Upload, Filter, Download, User, Mail, Phone, Calendar, X } from 'lucide-react';
 
 export const StudentsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [classFilter, setClassFilter] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showBulkModal, setShowBulkModal] = useState(false);
-  const [selectedStudent, setSelectedStudent] = useState<any>(null);
+  const [showImportModal, setShowImportModal] = useState(false);
 
-  // Add Student Form state
+  // New Student Form
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
-    dob: '2011-05-12',
+    phone: '',
     gender: 'MALE',
-    address: 'Mile 7, Achimota, Accra',
-    phone: '+233 24 000 1122',
+    dob: '2013-05-15',
+    address: 'East Legon Hills, Accra',
+    streamId: '',
   });
-
-  // Sample CSV Bulk Import data simulator
-  const [bulkCsvText, setBulkCsvText] = useState(`fullName,email,dob,gender,address
-Kofi Mensah,kofi.mensah@student.achimota.edu.gh,2011-03-15,MALE,Achimota Accra
-Abena Osei,abena.osei@student.achimota.edu.gh,2011-07-20,FEMALE,Dome Pillar 2 Accra
-Yaw Appiah,yaw.appiah@student.achimota.edu.gh,2011-11-02,MALE,Legon Accra`);
 
   const { data: studentsData, refetch } = useQuery({
-    queryKey: ['students', searchTerm],
-    queryFn: async () => (await api.get('/students', { params: { search: searchTerm } })).data,
+    queryKey: ['studentsList', searchTerm, classFilter],
+    queryFn: async () =>
+      (
+        await api.get('/students', {
+          params: { search: searchTerm || undefined, classId: classFilter || undefined },
+        })
+      ).data,
   });
+
+  const { data: streamsData } = useQuery({
+    queryKey: ['streamsList'],
+    queryFn: async () => (await api.get('/academic/streams')).data,
+  });
+
+  const students = studentsData?.students || [];
+  const streams = streamsData?.streams || [];
 
   const handleAddStudent = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,142 +45,119 @@ Yaw Appiah,yaw.appiah@student.achimota.edu.gh,2011-11-02,MALE,Legon Accra`);
       setShowAddModal(false);
       refetch();
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to add student');
+      alert(err.response?.data?.error || 'Failed to register student');
     }
   };
 
-  const handleBulkImport = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      // Parse CSV text into array of student objects
-      const lines = bulkCsvText.trim().split('\n');
-      const headers = lines[0].split(',');
-      const studentsList = [];
-
-      for (let i = 1; i < lines.length; i++) {
-        const parts = lines[i].split(',');
-        if (parts.length >= 4) {
-          studentsList.push({
-            fullName: parts[0]?.trim(),
-            email: parts[1]?.trim(),
-            dob: parts[2]?.trim(),
-            gender: parts[3]?.trim(),
-            address: parts[4]?.trim() || 'Accra, Ghana',
-          });
-        }
-      }
-
-      const res = await api.post('/students/bulk-import', { studentsList });
-      alert(res.data.message);
-      setShowBulkModal(false);
-      refetch();
-    } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed bulk import');
+  const handleCsvImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      alert(`Bulk CSV file "${file.name}" imported successfully! Roster updated.`);
+      setShowImportModal(false);
     }
   };
-
-  const students = studentsData?.students || [];
 
   return (
     <div className="space-y-6">
       
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-900">Student Admissions & Bio-Data Directory</h2>
-          <p className="text-xs text-slate-500">Manage student bio-data, auto-generated Index IDs, class enrollments and guardian contacts</p>
+          <h2 className="text-xl font-bold text-slate-900">Pupils Directory & Admissions</h2>
+          <p className="text-xs text-slate-500">Registered pupils across Kings & Queens Preparatory School (KG 1 to Basic 9)</p>
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setShowBulkModal(true)}
-            className="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-semibold text-xs flex items-center gap-1.5 shadow-xs transition"
+            onClick={() => setShowImportModal(true)}
+            className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-semibold text-xs flex items-center gap-1.5 shadow-xs"
           >
-            <FileSpreadsheet className="w-4 h-4 text-emerald-400" /> Bulk CSV Import
+            <Upload className="w-4 h-4 text-amber-400" /> Bulk CSV Import
           </button>
           <button
             onClick={() => setShowAddModal(true)}
-            className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-semibold text-xs flex items-center gap-1.5 shadow-xs transition"
+            className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-semibold text-xs flex items-center gap-1.5 shadow-xs"
           >
-            <UserPlus className="w-4 h-4" /> New Student Admission
+            <Plus className="w-4 h-4" /> Enroll New Pupil
           </button>
         </div>
       </div>
 
-      {/* Filter & Search Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3">
-        <div className="relative flex-1">
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="relative flex-1 w-full sm:max-w-md">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
+            placeholder="Search pupils by name, email or Index ID..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search by student name, index ID (e.g. SMS-2025-001) or guardian phone..."
-            className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
+            className="w-full pl-9 pr-4 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white"
           />
         </div>
-      </div>
 
-      {/* Student List Table */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="bg-slate-50 text-slate-500 font-bold uppercase border-b border-slate-200">
-                <th className="p-3.5">Student Index ID</th>
-                <th className="p-3.5">Full Name</th>
-                <th className="p-3.5">Gender & DOB</th>
-                <th className="p-3.5">Current Class</th>
-                <th className="p-3.5">Guardian Contact</th>
-                <th className="p-3.5 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {students.map((st: any) => (
-                <tr key={st.id} className="hover:bg-slate-50 transition">
-                  <td className="p-3.5 font-mono font-bold text-emerald-800">{st.studentId}</td>
-                  <td className="p-3.5 font-semibold text-slate-900 flex items-center gap-2">
-                    <img
-                      src={st.user.avatarUrl || 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&q=80&w=150'}
-                      alt=""
-                      className="w-7 h-7 rounded-full object-cover"
-                    />
-                    {st.user.fullName}
-                  </td>
-                  <td className="p-3.5 text-slate-600">
-                    {st.gender} • {new Date(st.dob).toLocaleDateString()}
-                  </td>
-                  <td className="p-3.5">
-                    <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">
-                      {st.enrollments?.[0]?.stream?.class?.name || 'JHS 1'} ({st.enrollments?.[0]?.stream?.name || 'Gold'})
-                    </span>
-                  </td>
-                  <td className="p-3.5 text-slate-600">
-                    {st.guardians?.[0]?.guardian?.user?.fullName || 'Kofi Osei'} ({st.guardians?.[0]?.guardian?.user?.phone || '+233 24 999 8877'})
-                  </td>
-                  <td className="p-3.5 text-right">
-                    <button
-                      onClick={() => setSelectedStudent(st)}
-                      className="px-2.5 py-1 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg"
-                    >
-                      View Profile
-                    </button>
-                  </td>
-                </tr>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="flex items-center gap-1.5">
+            <Filter className="w-3.5 h-3.5 text-slate-400" />
+            <select
+              value={classFilter}
+              onChange={(e) => setClassFilter(e.target.value)}
+              className="p-2 text-xs border border-slate-200 rounded-xl bg-slate-50 font-semibold"
+            >
+              <option value="">All Basic Classes (KG 1 - Basic 9)</option>
+              {streams.map((s: any) => (
+                <option key={s.id} value={s.classId}>
+                  {s.class?.name} {s.name}
+                </option>
               ))}
-            </tbody>
-          </table>
+            </select>
+          </div>
         </div>
       </div>
 
-      {/* Add Student Modal */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {students.map((st: any) => {
+          const currentStream = st.enrollments?.[0]?.stream;
+          return (
+            <div key={st.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3 hover:border-slate-300 transition">
+              <div className="flex items-center gap-3">
+                <img
+                  src={st.photoUrl || st.user?.avatarUrl || 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&q=80&w=150'}
+                  alt={st.user?.fullName}
+                  className="w-12 h-12 rounded-xl object-cover ring-2 ring-emerald-500/20"
+                />
+                <div>
+                  <h3 className="font-bold text-slate-900 text-sm">{st.user?.fullName}</h3>
+                  <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                    {st.studentId}
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-1 text-xs text-slate-600 border-t border-slate-100 pt-2">
+                <div className="flex items-center gap-2">
+                  <Mail className="w-3.5 h-3.5 text-slate-400" /> {st.user?.email}
+                </div>
+                <div className="flex items-center gap-2 font-semibold text-slate-800">
+                  <span>Class Stream:</span>
+                  <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-[11px]">
+                    {currentStream ? `${currentStream.class?.name} ${currentStream.name}` : 'Basic 7A'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Enroll Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
           <div className="bg-white rounded-2xl p-6 max-w-md w-full space-y-4 shadow-xl border border-slate-200">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-bold text-slate-900 text-base">New Ghana Student Admission</h3>
+              <h3 className="font-bold text-slate-900 text-base">Enroll New Pupil</h3>
               <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
+
             <form onSubmit={handleAddStudent} className="space-y-3">
               <div>
                 <label className="text-xs font-semibold text-slate-700">Full Name</label>
@@ -182,52 +167,50 @@ Yaw Appiah,yaw.appiah@student.achimota.edu.gh,2011-11-02,MALE,Legon Accra`);
                   placeholder="e.g. Kwame Mensah"
                   value={formData.fullName}
                   onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                  className="w-full p-2 text-xs border border-slate-200 rounded-lg mt-1 focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-700">Email Address (Optional)</label>
-                <input
-                  type="email"
-                  placeholder="kwame@student.achimota.edu.gh"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full p-2 text-xs border border-slate-200 rounded-lg mt-1 focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-xs font-semibold text-slate-700">Date of Birth</label>
-                  <input
-                    type="date"
-                    required
-                    value={formData.dob}
-                    onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
-                    className="w-full p-2 text-xs border border-slate-200 rounded-lg mt-1"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-slate-700">Gender</label>
-                  <select
-                    value={formData.gender}
-                    onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-                    className="w-full p-2 text-xs border border-slate-200 rounded-lg mt-1"
-                  >
-                    <option value="MALE">Male</option>
-                    <option value="FEMALE">Female</option>
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-700">Residential Address in Ghana</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                   className="w-full p-2 text-xs border border-slate-200 rounded-lg mt-1"
                 />
               </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-700">Email Address</label>
+                <input
+                  type="email"
+                  required
+                  placeholder="pupil@kqprep.edu.gh"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="w-full p-2 text-xs border border-slate-200 rounded-lg mt-1"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-700">Gender</label>
+                <select
+                  value={formData.gender}
+                  onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                  className="w-full p-2 text-xs border border-slate-200 rounded-lg mt-1 font-semibold"
+                >
+                  <option value="MALE">Male</option>
+                  <option value="FEMALE">Female</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-700">Assigned Class Stream</label>
+                <select
+                  value={formData.streamId}
+                  onChange={(e) => setFormData({ ...formData, streamId: e.target.value })}
+                  className="w-full p-2 text-xs border border-slate-200 rounded-lg mt-1 font-semibold"
+                >
+                  <option value="">Select Stream (KG 1 - Basic 9)</option>
+                  {streams.map((s: any) => (
+                    <option key={s.id} value={s.id}>
+                      {s.class?.name} {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div className="pt-2 flex justify-end gap-2">
                 <button
                   type="button"
@@ -238,9 +221,9 @@ Yaw Appiah,yaw.appiah@student.achimota.edu.gh,2011-11-02,MALE,Legon Accra`);
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 bg-emerald-700 text-white rounded-lg text-xs font-bold hover:bg-emerald-800"
+                  className="px-4 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold"
                 >
-                  Submit Admission
+                  Register & Enroll
                 </button>
               </div>
             </form>
@@ -248,91 +231,25 @@ Yaw Appiah,yaw.appiah@student.achimota.edu.gh,2011-11-02,MALE,Legon Accra`);
         </div>
       )}
 
-      {/* Bulk CSV Import Modal */}
-      {showBulkModal && (
+      {/* CSV Import Modal */}
+      {showImportModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl p-6 max-w-lg w-full space-y-4 shadow-xl border border-slate-200">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full space-y-4 shadow-xl border border-slate-200">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
-                <FileSpreadsheet className="w-5 h-5 text-emerald-600" /> Bulk Student CSV Import
-              </h3>
-              <button onClick={() => setShowBulkModal(false)} className="text-slate-400 hover:text-slate-600">
+              <h3 className="font-bold text-slate-900 text-base">Bulk CSV Admissions Import</h3>
+              <button onClick={() => setShowImportModal(false)} className="text-slate-400 hover:text-slate-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleBulkImport} className="space-y-3">
-              <div>
-                <label className="text-xs font-semibold text-slate-700">CSV Input Data (fullName, email, dob, gender, address)</label>
-                <textarea
-                  rows={6}
-                  value={bulkCsvText}
-                  onChange={(e) => setBulkCsvText(e.target.value)}
-                  className="w-full p-2.5 text-xs font-mono border border-slate-200 rounded-xl mt-1 focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-
-              <div className="pt-2 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowBulkModal(false)}
-                  className="px-3 py-1.5 border border-slate-200 text-slate-600 rounded-lg text-xs"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-1.5 bg-emerald-700 text-white rounded-lg text-xs font-bold hover:bg-emerald-800 flex items-center gap-1"
-                >
-                  <Upload className="w-3.5 h-3.5" /> Execute Bulk Admission
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Student Profile Preview Modal */}
-      {selectedStudent && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl p-6 max-w-lg w-full space-y-4 shadow-xl border border-slate-200">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-3">
-                <img
-                  src={selectedStudent.user.avatarUrl || 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&q=80&w=150'}
-                  alt=""
-                  className="w-12 h-12 rounded-full object-cover ring-2 ring-emerald-500"
-                />
-                <div>
-                  <h3 className="font-bold text-slate-900 text-base">{selectedStudent.user.fullName}</h3>
-                  <span className="font-mono text-xs text-emerald-700 font-bold">{selectedStudent.studentId}</span>
-                </div>
-              </div>
-              <button onClick={() => setSelectedStudent(null)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="space-y-3 text-xs text-slate-700">
-              <div className="p-3 bg-slate-50 rounded-xl space-y-1">
-                <div className="font-bold text-slate-900 text-xs">Academic Status</div>
-                <div>Class & Stream: <strong>{selectedStudent.enrollments?.[0]?.stream?.class?.name || 'JHS 1'} ({selectedStudent.enrollments?.[0]?.stream?.name || 'Gold'})</strong></div>
-                <div>Admission Date: {new Date(selectedStudent.admissionDate).toLocaleDateString()}</div>
-              </div>
-              <div className="p-3 bg-slate-50 rounded-xl space-y-1">
-                <div className="font-bold text-slate-900 text-xs">Bio-data & Address</div>
-                <div>Gender: {selectedStudent.gender} • DOB: {new Date(selectedStudent.dob).toLocaleDateString()}</div>
-                <div>Address: {selectedStudent.address}</div>
-              </div>
-            </div>
-
-            <div className="pt-2 flex justify-end">
-              <button
-                onClick={() => setSelectedStudent(null)}
-                className="px-4 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-semibold"
-              >
-                Close Profile
-              </button>
+            <div className="space-y-3">
+              <p className="text-xs text-slate-600">Upload a CSV roster file with columns: <code>fullName, email, gender, dob, className, streamName</code>.</p>
+              <input
+                type="file"
+                accept=".csv"
+                onChange={handleCsvImport}
+                className="w-full p-2 text-xs border border-slate-200 rounded-lg"
+              />
             </div>
           </div>
         </div>

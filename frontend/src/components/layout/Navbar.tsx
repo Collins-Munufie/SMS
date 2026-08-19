@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth, Role } from '../../context/AuthContext';
-import { Crown, Sparkles, LogOut, ChevronDown, Bell, Search, GraduationCap, ShieldCheck } from 'lucide-react';
+import { Crown, Sparkles, LogOut, ChevronDown, Bell, Search, ShieldCheck } from 'lucide-react';
 
 const roleLabels: Record<Role, { label: string; color: string }> = {
   SUPER_ADMIN: { label: 'Super Admin', color: 'bg-emerald-500 text-slate-950 font-extrabold' },
@@ -16,8 +17,15 @@ const roleLabels: Record<Role, { label: string; color: string }> = {
 export const Navbar: React.FC = () => {
   const { user, switchRole, logout } = useAuth();
   const [showRoleMenu, setShowRoleMenu] = useState(false);
+  const navigate = useNavigate();
 
   const currentRoleInfo = user ? roleLabels[user.role] : roleLabels.SUPER_ADMIN;
+
+  const handleRoleSwitch = async (r: Role) => {
+    setShowRoleMenu(false);
+    await switchRole(r);
+    navigate('/'); // Redirect to Dashboard on role switch to render valid role workspace
+  };
 
   return (
     <header className="sticky top-0 z-50 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 shadow-xl text-white">
@@ -92,10 +100,7 @@ export const Navbar: React.FC = () => {
                 {(Object.keys(roleLabels) as Role[]).map((r) => (
                   <button
                     key={r}
-                    onClick={() => {
-                      switchRole(r);
-                      setShowRoleMenu(false);
-                    }}
+                    onClick={() => handleRoleSwitch(r)}
                     className={`w-full text-left px-3.5 py-2 text-xs flex items-center justify-between hover:bg-slate-800 transition ${
                       user?.role === r ? 'font-bold text-amber-300 bg-slate-800/80' : 'text-slate-300'
                     }`}

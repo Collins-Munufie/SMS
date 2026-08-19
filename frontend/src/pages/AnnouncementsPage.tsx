@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
-import { Bell, Plus, Calendar, AlertCircle, X, Send, PhoneCall } from 'lucide-react';
+import { Bell, Plus, Calendar, AlertCircle, X, Send, PhoneCall, Crown } from 'lucide-react';
 
 export const AnnouncementsPage: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
@@ -11,7 +11,7 @@ export const AnnouncementsPage: React.FC = () => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [priority, setPriority] = useState('HIGH');
-  const [smsMessage, setSmsMessage] = useState('Achimota School Notice: PTA General Meeting is scheduled for Friday at 3:00 PM in the Assembly Hall.');
+  const [smsMessage, setSmsMessage] = useState('Kings & Queens Preparatory Notice: PTA General Meeting is scheduled for Friday at 3:00 PM in the Assembly Hall.');
 
   const { data: announcementsData, refetch } = useQuery({
     queryKey: ['announcements'],
@@ -21,16 +21,16 @@ export const AnnouncementsPage: React.FC = () => {
   const announcements = announcementsData?.announcements || [
     {
       id: '1',
-      title: 'Welcome to Academic Year 2025/2026',
-      content: 'Dear Parents, Staff, and Students, we warmly welcome everyone to Term 1. PTA meeting is scheduled for Friday at 3:00 PM.',
+      title: 'Welcome to Academic Year 2025/2026 — Kings & Queens Preparatory',
+      content: 'Dear Parents, Staff, and Pupils, we warmly welcome everyone to Term 1 of Basic Education (KG 1 to Basic 9). PTA meeting is scheduled for Friday at 3:00 PM.',
       priority: 'HIGH',
       createdAt: '2025-09-01T10:00:00Z',
       author: { fullName: 'Dr. Emmanuel K. Addo', role: 'SUPER_ADMIN' },
     },
     {
       id: '2',
-      title: 'Mid-Term Break Announcement',
-      content: 'Please take note that mid-term break starts on October 24th. Mid-term assessments will be published online.',
+      title: 'BECE Orientation & Mid-Term Assessment Schedule',
+      content: 'Orientation for Basic 9 BECE candidates and mid-term class test schedules will be published online. Mid-term break begins on October 24th.',
       priority: 'NORMAL',
       createdAt: '2025-10-10T08:30:00Z',
       author: { fullName: 'Mrs. Patience Baidoo', role: 'ADMIN' },
@@ -66,13 +66,13 @@ export const AnnouncementsPage: React.FC = () => {
       
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-900">School Noticeboard & SMS Broadcasts</h2>
+          <h2 className="text-xl font-bold text-slate-900">School Noticeboard & Parent SMS Broadcasts</h2>
           <p className="text-xs text-slate-500">Official circulars, PTA meeting notices and instant SMS broadcasts to parents via Hubtel/Twilio gateway</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowSmsModal(true)}
-            className="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-semibold text-xs flex items-center gap-1.5 shadow-xs"
+            className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-semibold text-xs flex items-center gap-1.5 shadow-xs border border-slate-700"
           >
             <Send className="w-4 h-4 text-amber-400" /> Send SMS Broadcast
           </button>
@@ -212,8 +212,8 @@ export const AnnouncementsPage: React.FC = () => {
               </div>
 
               <div className="p-3 bg-amber-50 rounded-xl text-xs text-amber-900 space-y-1">
-                <div className="font-bold">Target: All Registered Parent Contacts</div>
-                <p className="text-[11px] text-amber-800">Messages will be delivered instantly via Hubtel / Twilio Ghana Gateway.</p>
+                <div className="font-bold">Target: All Kings & Queens Registered Parent Contacts</div>
+                <p className="text-[11px] text-amber-800">Messages delivered via Hubtel / Twilio Ghana Gateway.</p>
               </div>
 
               <div className="pt-2 flex justify-end gap-2">
