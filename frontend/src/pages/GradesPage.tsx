@@ -373,7 +373,7 @@ export const GradesPage: React.FC = () => {
               {/* School Header */}
               <div className="text-center space-y-1 border-b-2 border-emerald-800 pb-4">
                 <h1 className="text-xl font-black text-emerald-900 uppercase tracking-wide">
-                  {reportCardData.schoolProfile?.name || 'ACHIMOTA BASIC & SENIOR HIGH SCHOOL'}
+                  {reportCardData.schoolProfile?.name || 'KINGS & QUEENS PREPARATORY SCHOOL'}
                 </h1>
                 <p className="text-xs font-bold text-slate-600 italic">
                   "{reportCardData.schoolProfile?.motto || 'Ut Omnes Unum Sint'}"

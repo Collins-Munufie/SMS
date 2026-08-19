@@ -488,7 +488,7 @@ export const FeesPage: React.FC = () => {
 
             <div className="border-2 border-emerald-700 p-5 rounded-xl space-y-4 bg-white text-slate-900 text-xs">
               <div className="text-center space-y-0.5 border-b pb-3 border-emerald-200">
-                <div className="font-extrabold text-sm text-emerald-900 uppercase">ACHIMOTA BASIC & SHS</div>
+                <div className="font-extrabold text-sm text-emerald-900 uppercase">KINGS & QUEENS PREPARATORY SCHOOL</div>
                 <div className="text-[10px] text-slate-500">OFFICIAL FEE PAYMENT RECEIPT</div>
                 <div className="font-mono font-bold text-emerald-800 text-xs">Receipt #: {showReceipt.receiptNumber || 'REC-2025-001'}</div>
               </div>

@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Seeding Ghana Basic Education School Management System (KG 1 - Basic 9)...');
+  console.log('🌱 Seeding Kings & Queens Preparatory School (KG 1 - Basic 9)...');
 
   // 1. Clear existing data
   await prisma.borrowRecord.deleteMany();
@@ -32,23 +32,23 @@ async function main() {
   await prisma.user.deleteMany();
   await prisma.schoolProfile.deleteMany();
 
-  // 2. School Profile - Ghana Basic Education
+  // 2. School Profile - Kings & Queens Preparatory School
   const school = await prisma.schoolProfile.create({
     data: {
-      name: 'Achimota Basic School',
-      motto: 'Knowledge, Character & Excellence (KG 1 - Basic 9)',
+      name: 'Kings & Queens Preparatory School',
+      motto: 'Excellence, Royalty & Moral Leadership (KG 1 - Basic 9)',
       logoUrl: 'https://images.unsplash.com/photo-1546410531-bb4caa6b424d?auto=format&fit=crop&q=80&w=250',
-      address: 'Achimota Mile 7, Accra, Ghana',
+      address: 'Plot 12, East Legon Hills, Accra, Ghana',
       phone: '+233 24 123 4567',
-      email: 'info@achimotabasic.edu.gh',
-      website: 'https://achimotabasic.edu.gh',
+      email: 'info@kqprep.edu.gh',
+      website: 'https://kqprep.edu.gh',
       region: 'Greater Accra',
       city: 'Accra',
       country: 'Ghana',
       currency: 'GHS',
     },
   });
-  console.log('✅ Created Basic School Profile:', school.name);
+  console.log('✅ Created School Profile:', school.name);
 
   // 3. Academic Years & 3 Terms
   const academicYear = await prisma.academicYear.create({
@@ -100,7 +100,7 @@ async function main() {
   // 5. Users for All 8 Roles
   const superAdminUser = await prisma.user.create({
     data: {
-      email: 'superadmin@achimotabasic.edu.gh',
+      email: 'superadmin@kqprep.edu.gh',
       passwordHash: defaultPasswordHash,
       fullName: 'Dr. Emmanuel K. Addo',
       role: 'SUPER_ADMIN',
@@ -111,7 +111,7 @@ async function main() {
 
   const adminUser = await prisma.user.create({
     data: {
-      email: 'registrar@achimotabasic.edu.gh',
+      email: 'registrar@kqprep.edu.gh',
       passwordHash: defaultPasswordHash,
       fullName: 'Mrs. Patience Baidoo',
       role: 'ADMIN',
@@ -122,7 +122,7 @@ async function main() {
 
   const mathTeacherUser = await prisma.user.create({
     data: {
-      email: 'kwaku.browning@achimotabasic.edu.gh',
+      email: 'kwaku.browning@kqprep.edu.gh',
       passwordHash: defaultPasswordHash,
       fullName: 'Mr. Kwaku Browning',
       role: 'TEACHER',
@@ -133,7 +133,7 @@ async function main() {
 
   const formTeacherUser = await prisma.user.create({
     data: {
-      email: 'abena.mensah@achimotabasic.edu.gh',
+      email: 'abena.mensah@kqprep.edu.gh',
       passwordHash: defaultPasswordHash,
       fullName: 'Ms. Abena Mensah',
       role: 'FORM_TEACHER',
@@ -144,7 +144,7 @@ async function main() {
 
   const bursarUser = await prisma.user.create({
     data: {
-      email: 'accountant@achimotabasic.edu.gh',
+      email: 'accountant@kqprep.edu.gh',
       passwordHash: defaultPasswordHash,
       fullName: 'Mr. Fiifi Amoah (Bursar)',
       role: 'BURSAR',
@@ -166,7 +166,7 @@ async function main() {
 
   const librarianUser = await prisma.user.create({
     data: {
-      email: 'librarian@achimotabasic.edu.gh',
+      email: 'librarian@kqprep.edu.gh',
       passwordHash: defaultPasswordHash,
       fullName: 'Mrs. Janet Quartey',
       role: 'LIBRARIAN',
@@ -177,7 +177,7 @@ async function main() {
 
   const studentUser1 = await prisma.user.create({
     data: {
-      email: 'kwame.osei@student.achimotabasic.edu.gh',
+      email: 'kwame.osei@student.kqprep.edu.gh',
       passwordHash: defaultPasswordHash,
       fullName: 'Kwame Osei',
       role: 'STUDENT',
@@ -188,7 +188,7 @@ async function main() {
 
   const studentUser2 = await prisma.user.create({
     data: {
-      email: 'ama.tutu@student.achimotabasic.edu.gh',
+      email: 'ama.tutu@student.kqprep.edu.gh',
       passwordHash: defaultPasswordHash,
       fullName: 'Ama Tutu',
       role: 'STUDENT',
@@ -325,7 +325,7 @@ async function main() {
       userId: studentUser1.id,
       dob: new Date('2012-04-14'),
       gender: 'MALE',
-      address: 'House No. 14, Mile 7, Achimota, Accra',
+      address: 'House No. 14, East Legon Hills, Accra',
       photoUrl: studentUser1.avatarUrl,
       admissionDate: new Date('2024-09-01'),
       status: 'ACTIVE',
@@ -338,7 +338,7 @@ async function main() {
       userId: studentUser2.id,
       dob: new Date('2012-08-22'),
       gender: 'FEMALE',
-      address: 'Block B, Dome Pillar 2, Accra',
+      address: 'Block B, Adjiringanor, Accra',
       photoUrl: studentUser2.avatarUrl,
       admissionDate: new Date('2024-09-01'),
       status: 'ACTIVE',
@@ -350,7 +350,7 @@ async function main() {
       userId: parentUser.id,
       occupation: 'Civil Servant',
       relationship: 'Father',
-      address: 'House No. 14, Mile 7, Achimota, Accra',
+      address: 'House No. 14, East Legon Hills, Accra',
       emergencyContact: '+233 24 999 8877',
     },
   });
@@ -430,12 +430,12 @@ async function main() {
       averageScore: 91.0,
       waecGrade: 'A1',
       positionInClass: 1,
-      formTeacherRemarks: 'Outstanding basic education student. Excellent conduct.',
+      formTeacherRemarks: 'Outstanding basic education pupil. Excellent conduct.',
       headteacherRemarks: 'Promoted to Basic 8.',
     },
   });
 
-  // 13. Fee Structure & Invoices (GHS Currency for Basic School)
+  // 13. Fee Structure & Invoices
   await prisma.feeStructure.createMany({
     data: [
       { classId: b7.id, termId: term1.id, name: 'Basic Tuition & Facility Levy', amount: 650.00, description: 'Term 1 Basic Tuition' },
@@ -470,13 +470,13 @@ async function main() {
       notes: 'Paid via MTN Mobile Money',
     },
   });
-  console.log('✅ Created Basic School Fee Structure, Invoices & MoMo Payments');
+  console.log('✅ Created Fee Structure, Invoices & MoMo Payments');
 
   // 14. Announcements
   await prisma.announcement.create({
     data: {
-      title: 'Welcome to Academic Year 2025/2026 — Basic Education',
-      content: 'Dear Parents, Staff, and Students, welcome to Term 1 of Basic Education (KG 1 to Basic 9). BECE orientation for Basic 9 candidates will be announced shortly.',
+      title: 'Welcome to Kings & Queens Preparatory School (2025/2026)',
+      content: 'Dear Parents, Staff, and Pupils, welcome to Term 1 at Kings & Queens Preparatory School (KG 1 to Basic 9). BECE orientation for Basic 9 candidates will be announced shortly.',
       authorId: superAdminUser.id,
       priority: 'HIGH',
     },
@@ -504,7 +504,7 @@ async function main() {
     },
   });
 
-  console.log('🎉 Seeding completed successfully for Ghana Basic Education (KG 1 - Basic 9)!');
+  console.log('🎉 Seeding completed successfully for Kings & Queens Preparatory School (KG 1 - Basic 9)!');
 }
 
 main()
