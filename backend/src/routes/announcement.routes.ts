@@ -8,13 +8,16 @@ const router = Router();
 // GET /api/announcements
 router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
-    const { targetRole } = req.query;
+    const { targetRole, priority } = req.query;
     const where: any = {};
     if (targetRole) {
       where.OR = [
         { targetRole: String(targetRole) },
         { targetRole: null },
       ];
+    }
+    if (priority && priority !== 'ALL') {
+      where.priority = String(priority);
     }
 
     const announcements = await prisma.announcement.findMany({
@@ -60,10 +63,21 @@ router.post('/', authenticateToken, authorizeRoles(Role.SUPER_ADMIN, Role.ADMIN)
   }
 });
 
+// DELETE /api/announcements/:id (Delete Announcement)
+router.delete('/:id', authenticateToken, authorizeRoles(Role.SUPER_ADMIN, Role.ADMIN), async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    await prisma.announcement.delete({ where: { id } });
+    res.json({ message: 'Announcement deleted successfully' });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/announcements/broadcast-sms (Simulate Ghana Twilio / Hubtel SMS Broadcast to Parents)
 router.post('/broadcast-sms', authenticateToken, authorizeRoles(Role.SUPER_ADMIN, Role.ADMIN), async (req: Request, res: Response) => {
   try {
-    const { message, recipientGroup } = req.body;
+    const { message } = req.body;
     if (!message) {
       return res.status(400).json({ error: 'SMS Message body is required' });
     }
@@ -76,7 +90,7 @@ router.post('/broadcast-sms', authenticateToken, authorizeRoles(Role.SUPER_ADMIN
 
     res.json({
       success: true,
-      message: `SMS Broadcast sent to ${recipientCount} parent mobile contacts via Ghana Gateway (Hubtel/Twilio).`,
+      message: `SMS Broadcast dispatched to ${recipientCount} parent mobile contacts via Ghana Gateway (Hubtel/Twilio).`,
       recipientCount,
       sampleRecipient: guardians[0]?.user?.phone || '+233 24 999 8877',
     });

@@ -1,7 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, Role } from '../../context/AuthContext';
-import { Crown, Sparkles, LogOut, ChevronDown, Bell, Search, ShieldCheck } from 'lucide-react';
+import { Crown, Sparkles, LogOut, ChevronDown, Bell, Search, ShieldCheck, Menu, X } from 'lucide-react';
+
+interface NavbarProps {
+  onToggleMobileMenu?: () => void;
+  isMobileMenuOpen?: boolean;
+}
 
 const roleLabels: Record<Role, { label: string; color: string }> = {
   SUPER_ADMIN: { label: 'Super Admin', color: 'bg-emerald-500 text-slate-950 font-extrabold' },
@@ -14,7 +19,7 @@ const roleLabels: Record<Role, { label: string; color: string }> = {
   LIBRARIAN: { label: 'Librarian', color: 'bg-amber-200 text-slate-950 font-extrabold' },
 };
 
-export const Navbar: React.FC = () => {
+export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu, isMobileMenuOpen }) => {
   const { user, switchRole, logout } = useAuth();
   const [showRoleMenu, setShowRoleMenu] = useState(false);
   const navigate = useNavigate();
@@ -36,10 +41,20 @@ export const Navbar: React.FC = () => {
         <div className="bg-emerald-600" />
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
         
-        {/* Left: Royal School Crest & Name */}
+        {/* Left: Hamburger (Mobile) + Royal School Crest & Name */}
         <div className="flex items-center gap-3">
+          {onToggleMobileMenu && (
+            <button
+              onClick={onToggleMobileMenu}
+              className="lg:hidden p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
+              aria-label="Toggle navigation menu"
+            >
+              {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+          )}
+
           <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 via-amber-400 to-amber-200 p-0.5 shadow-lg shadow-amber-500/20 shrink-0">
             <div className="w-full h-full bg-slate-900 rounded-[10px] flex items-center justify-center">
               <Crown className="w-5 h-5 text-amber-400 animate-pulse" />
@@ -48,48 +63,48 @@ export const Navbar: React.FC = () => {
 
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="font-extrabold text-white text-base sm:text-lg tracking-tight flex items-center gap-1.5">
-                Kings & Queens Preparatory School
+              <h1 className="font-extrabold text-white text-sm sm:text-base md:text-lg tracking-tight flex items-center gap-1.5 truncate max-w-[190px] sm:max-w-none">
+                Kings & Queens Preparatory
               </h1>
               <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-400/20 text-amber-300 border border-amber-400/30 hidden sm:inline-flex items-center gap-1">
                 <Sparkles className="w-3 h-3 text-amber-400" /> Basic Education
               </span>
             </div>
-            <p className="text-[11px] text-slate-400 flex items-center gap-2">
+            <p className="text-[10px] sm:text-[11px] text-slate-400 flex items-center gap-2">
               <span>KG 1 – Basic 9 (BECE)</span>
-              <span className="w-1 h-1 rounded-full bg-slate-600" />
-              <span className="text-emerald-400 font-medium">Term 1 (2025/2026)</span>
+              <span className="w-1 h-1 rounded-full bg-slate-600 hidden sm:inline" />
+              <span className="text-emerald-400 font-medium hidden sm:inline">Term 1 (2025/2026)</span>
             </p>
           </div>
         </div>
 
-        {/* Center: Search Bar */}
+        {/* Center: Search Bar (Desktop) */}
         <div className="hidden md:flex items-center flex-1 max-w-sm mx-4">
           <div className="relative w-full">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search pupils, index IDs, staff, or fee records..."
+              placeholder="Search pupils, index IDs, staff, or fees..."
               className="w-full pl-9 pr-4 py-1.5 text-xs bg-slate-800/80 border border-slate-700/80 text-slate-200 placeholder-slate-400 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-400/60 focus:bg-slate-800 transition"
             />
           </div>
         </div>
 
         {/* Right: Role Impersonator & Profile */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           
           {/* Role Impersonation Switcher */}
           <div className="relative">
             <button
               onClick={() => setShowRoleMenu(!showRoleMenu)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-800 text-xs font-semibold transition shadow-xs"
+              className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-800 text-xs font-semibold transition shadow-xs"
             >
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
               <span className="text-slate-400 hidden sm:inline">Role:</span>
-              <span className={`px-2 py-0.5 rounded-md ${currentRoleInfo.color}`}>
+              <span className={`px-2 py-0.5 rounded-md text-[10px] sm:text-xs truncate max-w-[90px] sm:max-w-none ${currentRoleInfo.color}`}>
                 {currentRoleInfo.label}
               </span>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             </button>
 
             {showRoleMenu && (
@@ -113,18 +128,12 @@ export const Navbar: React.FC = () => {
             )}
           </div>
 
-          {/* Bell Icon */}
-          <button className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 relative transition">
-            <Bell className="w-4 h-4" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-          </button>
-
           {/* User Profile Info */}
-          <div className="flex items-center gap-2.5 pl-2 border-l border-slate-800">
+          <div className="flex items-center gap-2 pl-1 sm:pl-2 border-l border-slate-800">
             <img
               src={user?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150'}
               alt={user?.fullName || 'User'}
-              className="w-8 h-8 rounded-xl object-cover ring-2 ring-amber-400/40"
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl object-cover ring-2 ring-amber-400/40"
             />
             <div className="hidden lg:block text-left">
               <div className="text-xs font-bold text-white leading-tight">{user?.fullName || 'Demo Admin'}</div>

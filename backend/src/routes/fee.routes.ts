@@ -48,6 +48,40 @@ router.post('/structures', authenticateToken, authorizeRoles(Role.SUPER_ADMIN, R
   }
 });
 
+// POST /api/fees/invoices (Create Single Student Invoice)
+router.post('/invoices', authenticateToken, authorizeRoles(Role.SUPER_ADMIN, Role.ADMIN, Role.BURSAR), async (req: Request, res: Response) => {
+  try {
+    const { studentId, termId, totalAmount, dueDate } = req.body;
+    if (!studentId || !totalAmount) {
+      return res.status(400).json({ error: 'studentId and totalAmount are required' });
+    }
+
+    const activeTermId = termId || (await prisma.term.findFirst({ where: { isCurrent: true } }))?.id || (await prisma.term.findFirst())?.id;
+    const count = await prisma.invoice.count();
+    const currentYear = new Date().getFullYear();
+    const invoiceNumber = `INV-${currentYear}-${String(count + 1).padStart(3, '0')}`;
+
+    const invoice = await prisma.invoice.create({
+      data: {
+        invoiceNumber,
+        studentId,
+        termId: activeTermId,
+        totalAmount: Number(totalAmount),
+        balance: Number(totalAmount),
+        dueDate: dueDate ? new Date(dueDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        status: 'UNPAID',
+      },
+      include: {
+        student: { include: { user: true } },
+      },
+    });
+
+    res.status(201).json({ message: 'Invoice generated successfully', invoice });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/fees/invoices/generate-bulk (Bulk Invoice Generator for Class Stream)
 router.post('/invoices/generate-bulk', authenticateToken, authorizeRoles(Role.SUPER_ADMIN, Role.ADMIN, Role.BURSAR), async (req: Request, res: Response) => {
   try {
@@ -186,6 +220,59 @@ router.get('/defaulters', authenticateToken, authorizeRoles(Role.SUPER_ADMIN, Ro
     res.status(500).json({ error: err.message });
   }
 });
+
+// POST /api/fees/defaulters/send-reminders (Send SMS Reminders to Debtors' Parents)
+router.post(
+  '/defaulters/send-reminders',
+  authenticateToken,
+  authorizeRoles(Role.SUPER_ADMIN, Role.ADMIN, Role.BURSAR),
+  async (req: Request, res: Response) => {
+    try {
+      const defaulters = await prisma.invoice.findMany({
+        where: {
+          status: { in: [InvoiceStatus.UNPAID, InvoiceStatus.PARTIAL] },
+          balance: { gt: 0 },
+        },
+        include: {
+          student: {
+            include: {
+              user: { select: { fullName: true, phone: true } },
+              guardians: {
+                include: { guardian: { include: { user: { select: { fullName: true, phone: true } } } } },
+              },
+            },
+          },
+        },
+      });
+
+      const recipientCount = defaulters.length;
+
+      res.json({
+        success: true,
+        message: `Dispatched SMS fee payment reminders to ${recipientCount} parent contacts via Ghana SMS Gateway (Hubtel/Twilio).`,
+        recipientCount,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
+
+// DELETE /api/fees/structures/:id (Delete Fee Structure Item)
+router.delete(
+  '/structures/:id',
+  authenticateToken,
+  authorizeRoles(Role.SUPER_ADMIN, Role.ADMIN, Role.BURSAR),
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      await prisma.feeStructure.delete({ where: { id } });
+      res.json({ message: 'Fee structure item deleted successfully' });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
 
 // POST /api/fees/payments (Record Payment & Issue Receipt)
 router.post('/payments', authenticateToken, authorizeRoles(Role.SUPER_ADMIN, Role.ADMIN, Role.BURSAR), async (req: AuthRequest, res: Response) => {

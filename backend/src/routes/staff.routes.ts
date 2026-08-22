@@ -120,7 +120,29 @@ router.post('/allocations', authenticateToken, authorizeRoles('SUPER_ADMIN', 'AD
       },
     });
 
-    res.json({ message: 'Teacher allocated successfully', allocation });
+    res.json({ message: 'Teacher allocated to subject and stream successfully', allocation });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/staff/allocations/:id (Remove subject-teacher allocation)
+router.delete('/allocations/:id', authenticateToken, authorizeRoles('SUPER_ADMIN', 'ADMIN'), async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    await prisma.classSubjectTeacher.delete({ where: { id } });
+    res.json({ message: 'Subject allocation removed successfully' });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/staff/:id (Delete staff member)
+router.delete('/:id', authenticateToken, authorizeRoles('SUPER_ADMIN', 'ADMIN'), async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    await prisma.user.delete({ where: { id } });
+    res.json({ message: 'Staff member account deleted successfully' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

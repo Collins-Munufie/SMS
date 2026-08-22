@@ -12,6 +12,7 @@ import feeRoutes from './routes/fee.routes';
 import announcementRoutes from './routes/announcement.routes';
 import timetableRoutes from './routes/timetable.routes';
 import reportRoutes from './routes/report.routes';
+import libraryRoutes from './routes/library.routes';
 
 const app = express();
 
@@ -35,6 +36,7 @@ app.use('/api/fees', feeRoutes);
 app.use('/api/announcements', announcementRoutes);
 app.use('/api/timetable', timetableRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/library', libraryRoutes);
 
 // Global Error Handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

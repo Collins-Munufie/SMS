@@ -8,7 +8,7 @@ const router = Router();
 // GET /api/students
 router.get('/', authenticateToken, async (req: Request, res: Response) => {
   try {
-    const { streamId, status, search } = req.query;
+    const { streamId, classId, status, search } = req.query;
 
     const where: any = {};
     if (status) where.status = String(status);
@@ -22,6 +22,10 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
     if (streamId) {
       where.enrollments = {
         some: { streamId: String(streamId) },
+      };
+    } else if (classId) {
+      where.enrollments = {
+        some: { stream: { classId: String(classId) } },
       };
     }
 
@@ -105,7 +109,7 @@ router.post('/', authenticateToken, authorizeRoles('SUPER_ADMIN', 'ADMIN'), asyn
     const user = await prisma.user.create({
       data: {
         fullName,
-        email: email || `${generatedStudentId.toLowerCase()}@student.achimota.edu.gh`,
+        email: email || `${generatedStudentId.toLowerCase()}@kqprep.edu.gh`,
         passwordHash,
         role: 'STUDENT',
         phone: req.body.phone || null,
@@ -116,24 +120,48 @@ router.post('/', authenticateToken, authorizeRoles('SUPER_ADMIN', 'ADMIN'), asyn
       data: {
         studentId: generatedStudentId,
         userId: user.id,
-        dob: new Date(dob),
+        dob: dob ? new Date(dob) : new Date('2014-01-01'),
         gender: gender || 'MALE',
-        address: address || 'Accra, Ghana',
+        address: address || 'East Legon Hills, Accra, Ghana',
         status: 'ACTIVE',
       },
     });
 
-    if (streamId && termId) {
+    // Auto-resolve termId if not provided
+    const targetTermId =
+      termId ||
+      (await prisma.term.findFirst({ where: { isCurrent: true } }))?.id ||
+      (await prisma.term.findFirst())?.id;
+
+    if (streamId && targetTermId) {
       await prisma.enrollment.create({
         data: {
           studentId: student.id,
           streamId,
-          termId,
+          termId: targetTermId,
         },
       });
     }
 
-    res.status(201).json({ message: 'Student registered successfully', student });
+    res.status(201).json({ message: 'Student registered and enrolled successfully', student });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/students/:id (Super Admin & Admin Delete Pupil)
+router.delete('/:id', authenticateToken, authorizeRoles('SUPER_ADMIN', 'ADMIN'), async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const student = await prisma.student.findUnique({ where: { id } });
+    if (!student) {
+      return res.status(404).json({ error: 'Pupil record not found' });
+    }
+
+    // Delete associated User account (cascades to student and related records)
+    await prisma.user.delete({ where: { id: student.userId } });
+
+    res.json({ message: 'Pupil record and account deleted successfully' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -143,7 +171,6 @@ router.post('/', authenticateToken, authorizeRoles('SUPER_ADMIN', 'ADMIN'), asyn
 router.post('/bulk-import', authenticateToken, authorizeRoles('SUPER_ADMIN', 'ADMIN'), async (req: Request, res: Response) => {
   try {
     const { studentsList, streamId, termId } = req.body;
-    // studentsList: [{ fullName, email, dob, gender, address }]
 
     if (!Array.isArray(studentsList) || studentsList.length === 0) {
       return res.status(400).json({ error: 'studentsList must be a non-empty array' });
@@ -152,6 +179,10 @@ router.post('/bulk-import', authenticateToken, authorizeRoles('SUPER_ADMIN', 'AD
     const defaultPasswordHash = await bcrypt.hash('Password123!', 10);
     const initialCount = await prisma.student.count();
     const currentYear = new Date().getFullYear();
+    const targetTermId =
+      termId ||
+      (await prisma.term.findFirst({ where: { isCurrent: true } }))?.id ||
+      (await prisma.term.findFirst())?.id;
 
     const createdStudents = [];
 
@@ -162,7 +193,7 @@ router.post('/bulk-import', authenticateToken, authorizeRoles('SUPER_ADMIN', 'AD
       const user = await prisma.user.create({
         data: {
           fullName: item.fullName,
-          email: item.email || `${generatedStudentId.toLowerCase()}@student.achimota.edu.gh`,
+          email: item.email || `${generatedStudentId.toLowerCase()}@kqprep.edu.gh`,
           passwordHash: defaultPasswordHash,
           role: 'STUDENT',
         },
@@ -172,19 +203,19 @@ router.post('/bulk-import', authenticateToken, authorizeRoles('SUPER_ADMIN', 'AD
         data: {
           studentId: generatedStudentId,
           userId: user.id,
-          dob: item.dob ? new Date(item.dob) : new Date('2011-01-01'),
+          dob: item.dob ? new Date(item.dob) : new Date('2014-01-01'),
           gender: item.gender || 'MALE',
-          address: item.address || 'Accra, Ghana',
+          address: item.address || 'East Legon Hills, Accra, Ghana',
           status: 'ACTIVE',
         },
       });
 
-      if (streamId && termId) {
+      if (streamId && targetTermId) {
         await prisma.enrollment.create({
           data: {
             studentId: student.id,
             streamId,
-            termId,
+            termId: targetTermId,
           },
         });
       }
@@ -193,7 +224,7 @@ router.post('/bulk-import', authenticateToken, authorizeRoles('SUPER_ADMIN', 'AD
     }
 
     res.status(201).json({
-      message: `Successfully imported ${createdStudents.length} students via bulk admission`,
+      message: `Successfully imported and enrolled ${createdStudents.length} pupils via bulk admission.`,
       count: createdStudents.length,
     });
   } catch (err: any) {
